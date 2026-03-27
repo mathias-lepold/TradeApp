@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>TradeApp — Professional Trading Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+/* ══════════════════════════════════════════════════════
+   DESIGN TOKENS — Dark Bloomberg-meets-Apple aesthetic
+   Syne (headings/labels) + Outfit (body) + IBM Plex Mono (numbers)
+══════════════════════════════════════════════════════ */
+:root {
+  --bg-base:      #080c12;
+  --bg-surface:   #0e1420;
+  --bg-elevated:  #141c2a;
+  --bg-hover:     #1a2438;
+  --bg-active:    #1f2d46;
+
+  --border-dim:   rgba(255,255,255,0.05);
+  --border-std:   rgba(255,255,255,0.09);
+  --border-bold:  rgba(255,255,255,0.16);
+
+  --text-1: #e8edf5;
+  --text-2: #8b95a8;
+  --text-3: #4e5a6e;
+  --text-inv: #080c12;
+
+  --accent:       #3d8ef8;
+  --accent-dim:   rgba(61,142,248,0.12);
+  --accent-glow:  rgba(61,142,248,0.25);
+
+  --green:        #22c55e;
+  --green-dim:    rgba(34,197,94,0.10);
+  --red:          #ef4444;
+  --red-dim:      rgba(239,68,68,0.10);
+  --amber:        #f59e0b;
+  --amber-dim:    rgba(245,158,11,0.10);
+
+  /* Heatmap */
+  --hm-g4: #14532d; --hm-g3: #15803d; --hm-g2: #16a34a; --hm-g1: #4ade80;
+  --hm-0:  #374151;
+  --hm-r1: #f87171; --hm-r2: #dc2626; --hm-r3: #991b1b; --hm-r4: #450a0a;
+
+  --font-head: 'Syne', sans-serif;
+  --font-body: 'Outfit', sans-serif;
+  --font-num:  'IBM Plex Mono', monospace;
+
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px; --r-full: 999px;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
+  --shadow-glow: 0 0 20px rgba(61,142,248,0.15);
+  --trans: 140ms ease;
+}
+
+/* ── Reset ────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; -webkit-font-smoothing: antialiased; }
+body { font-family: var(--font-body); background: var(--bg-base); color: var(--text-1); min-height: 100vh; overflow-x: hidden; }
+
+/* ── Scrollbar ────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-bold); border-radius: 2px; }
+
+/* ── Typography ───────────────────────────────────── */
+.font-head { font-family: var(--font-head); }
+.font-num  { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.label-caps { font-family: var(--font-head); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+
+/* ── Animations ───────────────────────────────────── */
+@keyframes fadeUp   { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+@keyframes slideIn  { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+@keyframes pulse    { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(.75)} }
+@keyframes shimmer  { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+@keyframes countUp  { from{opacity:0} to{opacity:1} }
+@keyframes glow-pulse { 0%,100%{box-shadow:0 0 0 0 var(--accent-glow)} 50%{box-shadow:0 0 0 6px transparent} }
+
+.anim-fade  { animation: fadeUp 240ms ease forwards; }
+.anim-slide { animation: slideIn 220ms ease forwards; }
+
+/* Staggered entrance */
+.stagger > * { opacity:0; animation: fadeUp 220ms ease forwards; }
+.stagger > *:nth-child(1) { animation-delay:30ms }
+.stagger > *:nth-child(2) { animation-delay:70ms }
+.stagger > *:nth-child(3) { animation-delay:110ms }
+.stagger > *:nth-child(4) { animation-delay:150ms }
+.stagger > *:nth-child(5) { animation-delay:190ms }
+.stagger > *:nth-child(6) { animation-delay:230ms }
+.stagger > *:nth-child(7) { animation-delay:270ms }
+.stagger > *:nth-child(8) { animation-delay:310ms }
+
+/* ══════════════════════════════════════════════════════
+   BUTTON SYSTEM
+══════════════════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: none; cursor: pointer; font-family: var(--font-body); font-weight: 500;
+  border-radius: var(--r-md); transition: all var(--trans); white-space: nowrap;
+  user-select: none; outline: none; position: relative; overflow: hidden;
+}
+.btn:active { transform: scale(.96); }
+.btn:focus-visible { box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--accent); }
+.btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* Sizes */
+.btn-xl { font-size: 14px; padding: 12px 24px; border-radius: var(--r-lg); }
+.btn-lg { font-size: 13px; padding: 10px 20px; }
+.btn-md { font-size: 12px; padding: 8px 16px; }
+.btn-sm { font-size: 11px; padding: 6px 12px; border-radius: var(--r-sm); }
+.btn-xs { font-size: 10px; padding: 4px 10px; border-radius: var(--r-sm); }
+.btn-icon { padding: 8px; }
+.btn-pill { border-radius: var(--r-full) !important; }
+
+/* Variants */
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #5a9ef9; box-shadow: var(--shadow-glow); }
+
+.btn-buy { background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; }
+.btn-buy:hover { filter: brightness(1.1); box-shadow: 0 0 20px rgba(34,197,94,0.3); }
+
+.btn-sell { background: linear-gradient(135deg, #b91c1c, #ef4444); color: #fff; }
+.btn-sell:hover { filter: brightness(1.1); box-shadow: 0 0 20px rgba(239,68,68,0.3); }
+
+.btn-ghost {
+  background: var(--bg-elevated); color: var(--text-2);
+  border: 1px solid var(--border-std);
+}
+.btn-ghost:hover { background: var(--bg-hover); color: var(--text-1); border-color: var(--border-bold); }
+
+.btn-outline {
+  background: transparent; color: var(--accent);
+  border: 1.5px solid var(--accent);
+}
+.btn-outline:hover { background: var(--accent-dim); }
+
+.btn-ai {
+  background: linear-gradient(135deg, #1e3a5f, #2563eb);
+  color: #93c5fd;
+  border: 1px solid rgba(59,130,246,0.3);
+}
+.btn-ai:hover { filter: brightness(1.1); box-shadow: 0 0 16px rgba(37,99,235,0.3); }
+
+.btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+.btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+/* ══════════════════════════════════════════════════════
+   TAG / BADGE SYSTEM
+══════════════════════════════════════════════════════ */
+.tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 600; font-family: var(--font-head);
+  padding: 3px 8px; border-radius: var(--r-full); letter-spacing: .02em;
+}
+.tag-buy    { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+.tag-sell   { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(239,68,68,0.2); }
+.tag-hold   { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+.tag-avoid  { background: rgba(239,68,68,0.06); color: #f87171; border: 1px solid rgba(239,68,68,0.15); }
+.tag-info   { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(61,142,248,0.2); }
+.tag-neutral{ background: rgba(255,255,255,0.04); color: var(--text-2); border: 1px solid var(--border-std); }
+
+/* ══════════════════════════════════════════════════════
+   CARD SYSTEM
+══════════════════════════════════════════════════════ */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+}
+.card-elevated {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-std);
+  border-radius: var(--r-lg);
+}
+.card:hover, .card-hover:hover {
+  border-color: var(--border-bold);
+  transition: border-color var(--trans);
+}
+
+/* ══════════════════════════════════════════════════════
+   APP SHELL
+══════════════════════════════════════════════════════ */
+.app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* ── TopBar ───────────────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; height: 56px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-std);
+  flex-shrink: 0;
+  z-index: 100;
+}
+.topbar-brand { display: flex; align-items: center; gap: 10px; }
+.brand-logo {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, #1d4ed8, #3d8ef8);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 12px rgba(61,142,248,0.3);
+}
+.brand-name {
+  font-family: var(--font-head); font-size: 17px; font-weight: 700;
+  color: var(--text-1); letter-spacing: -.01em;
+}
+.brand-live {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--text-3);
+  padding: 3px 8px; background: var(--bg-elevated); border-radius: var(--r-full);
+  border: 1px solid var(--border-dim);
+}
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.6s infinite; }
+
+.portfolio-badge {
+  background: var(--bg-elevated); border: 1px solid var(--border-std);
+  border-radius: var(--r-md); padding: 8px 14px; text-align: right; cursor: pointer;
+  transition: border-color var(--trans);
+}
+.portfolio-badge:hover { border-color: var(--border-bold); }
+.portfolio-value { font-family: var(--font-num); font-size: 18px; font-weight: 500; color: var(--text-1); }
+.portfolio-chg   { font-size: 11px; color: var(--green); margin-top: 1px; }
+
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+.icon-btn {
+  position: relative; width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-elevated); border: 1px solid var(--border-std);
+  border-radius: var(--r-md); cursor: pointer; color: var(--text-2);
+  transition: all var(--trans);
+}
+.icon-btn:hover { background: var(--bg-hover); color: var(--text-1); border-color: var(--border-bold); }
+.notif-badge {
+  position: absolute; top: -4px; right: -4px;
+  width: 16px; height: 16px; background: var(--red);
+  border-radius: 50%; border: 2px solid var(--bg-surface);
+  font-size: 9px; font-weight: 700; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── Alert Strip ──────────────────────────────────── */
+.alert-strip {
+  display: flex; align-items: center; gap: 0;
+  background: var(--bg-surface); border-bottom: 1px solid var(--border-std);
+  overflow-x: auto; flex-shrink: 0;
+}
+.alert-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 16px; font-size: 11px; color: var(--text-2);
+  border-right: 1px solid var(--border-dim); cursor: pointer; white-space: nowrap;
+  transition: background var(--trans); flex-shrink: 0;
+}
+.alert-item:hover { background: var(--bg-hover); }
+.alert-item b  { color: var(--text-1); font-weight: 500; }
+.a-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.a-red { background: var(--red); } .a-amber { background: var(--amber); } .a-green { background: var(--green); }
+.alert-strip-all { margin-left: auto; flex-shrink: 0; padding: 0 12px; }
+
+/* ── Nav Tabs ─────────────────────────────────────── */
+.nav-tabs {
+  display: flex; gap: 0;
+  background: var(--bg-surface); border-bottom: 1px solid var(--border-std);
+  padding: 0 16px; flex-shrink: 0; overflow-x: auto;
+}
+.nav-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 11px 14px; font-size: 12px; font-weight: 500; font-family: var(--font-head);
+  color: var(--text-3); cursor: pointer; border-bottom: 2px solid transparent;
+  transition: all var(--trans); white-space: nowrap; border-radius: 0;
+}
+.nav-tab svg { width: 13px; height: 13px; opacity: .5; flex-shrink: 0; transition: opacity var(--trans); }
+.nav-tab:hover { color: var(--text-2); }
+.nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.nav-tab.active svg { opacity: 1; }
+
+/* ── Pulse Strip (indices) ────────────────────────── */
+.pulse-strip {
+  display: grid; grid-template-columns: repeat(8,minmax(0,1fr));
+  background: var(--bg-surface); border-bottom: 1px solid var(--border-std);
+  flex-shrink: 0;
+}
+.pulse-item {
+  padding: 9px 14px; cursor: pointer; border-right: 1px solid var(--border-dim);
+  transition: background var(--trans);
+}
+.pulse-item:last-child { border-right: none; }
+.pulse-item:hover { background: var(--bg-hover); }
+.pi-label { font-size: 9px; font-weight: 600; font-family: var(--font-head); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin-bottom: 3px; }
+.pi-value { font-family: var(--font-num); font-size: 13px; font-weight: 500; color: var(--text-1); }
+.pi-chg   { font-size: 10px; margin-top: 2px; font-family: var(--font-num); }
+.up  { color: var(--green); }
+.dn  { color: var(--red); }
+.neu { color: var(--text-3); }
+
+/* ── Main Content ─────────────────────────────────── */
+.main-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.page { display: none; flex: 1; overflow-y: auto; animation: fadeUp 200ms ease; }
+.page.active { display: flex; flex-direction: column; }
+
+/* ══════════════════════════════════════════════════════
+   HOME PAGE
+══════════════════════════════════════════════════════ */
+.home-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  grid-template-rows: auto auto 1fr;
+  flex: 1; overflow: hidden;
+}
+.home-left  { overflow-y: auto; border-right: 1px solid var(--border-std); }
+.home-right { overflow-y: auto; display: flex; flex-direction: column; }
+
+.section-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px 8px;
+}
+
+/* Sentiment cards */
+.sentiment-grid {
+  display: grid; grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 8px; padding: 0 16px 12px;
+  border-bottom: 1px solid var(--border-dim);
+}
+.sent-card {
+  background: var(--bg-elevated); border: 1px solid var(--border-std);
+  border-radius: var(--r-lg); padding: 12px 14px; cursor: pointer;
+  transition: all var(--trans);
+}
+.sent-card:hover { border-color: var(--border-bold); background: var(--bg-hover); }
+.sc-label { font-size: 9px; font-weight: 600; font-family: var(--font-head); letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); margin-bottom: 5px; }
+.sc-value { font-family: var(--font-num); font-size: 20px; font-weight: 500; }
+.sc-sub   { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+
+/* Mini treemap */
+.mini-tm-wrap { padding: 0 16px 12px; border-bottom: 1px solid var(--border-dim); }
+
+/* Briefing */
+.briefing-list { padding: 0 16px 12px; border-bottom: 1px solid var(--border-dim); }
+.brief-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 10px; border-radius: var(--r-md); cursor: pointer;
+  transition: background var(--trans); margin-bottom: 2px;
+}
+.brief-row:hover { background: var(--bg-hover); }
+.brief-dot  { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.brief-text { flex: 1; font-size: 11px; color: var(--text-2); line-height: 1.5; }
+.brief-text b { color: var(--text-1); font-weight: 500; }
+.brief-arr  { font-size: 12px; color: var(--text-3); flex-shrink: 0; margin-top: 2px; }
+
+/* Right column */
+.section-divider { height: 1px; background: var(--border-dim); margin: 0 16px; }
+
+/* Signal cards */
+.signal-list { display: flex; flex-direction: column; gap: 5px; padding: 0 12px 12px; }
+.sig-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: var(--r-lg);
+  background: var(--bg-elevated); border: 1px solid var(--border-std);
+  cursor: pointer; transition: all var(--trans);
+}
+.sig-card:hover { border-color: var(--border-bold); background: var(--bg-hover); }
+.sig-ticker { font-family: var(--font-head); font-size: 14px; font-weight: 700; color: var(--text-1); width: 48px; flex-shrink: 0; }
+.sig-meta   { flex: 1; min-width: 0; }
+.sig-row1   { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.sig-price  { font-family: var(--font-num); font-size: 11px; color: var(--text-3); }
+.sig-bar-wrap { display: flex; align-items: center; gap: 6px; }
+.sig-bar-track { flex: 1; height: 3px; background: var(--border-std); border-radius: 2px; overflow: hidden; }
+.sig-bar-fill  { height: 100%; border-radius: 2px; transition: width 600ms ease; }
+.sig-score  { font-family: var(--font-num); font-size: 10px; color: var(--text-3); width: 32px; text-align: right; flex-shrink: 0; }
+.sig-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+/* Portfolio mini */
+.port-rows { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 1px; }
+.port-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: var(--r-md); cursor: pointer;
+  transition: background var(--trans);
+}
+.port-row:hover { background: var(--bg-hover); }
+.port-ticker  { font-family: var(--font-head); font-size: 13px; font-weight: 700; color: var(--text-1); width: 50px; flex-shrink: 0; }
+.port-middle  { flex: 1; min-width: 0; }
+.port-name    { font-size: 10px; color: var(--text-3); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.port-bar     { height: 3px; border-radius: 2px; background: var(--border-std); overflow: hidden; }
+.port-bar-fill { height: 100%; border-radius: 2px; }
+.port-right  { text-align: right; flex-shrink: 0; }
+.port-val    { font-family: var(--font-num); font-size: 12px; font-weight: 500; color: var(--text-1); }
+.port-pnl    { font-family: var(--font-num); font-size: 10px; }
+
+/* Macro mini grid */
+.macro-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 0 12px 12px; }
+.mc-tile {
+  background: var(--bg-elevated); border: 1px solid var(--border-std);
+  border-radius: var(--r-md); padding: 9px 11px; cursor: pointer;
+  transition: all var(--trans);
+}
+.mc-tile:hover { border-color: var(--border-bold); }
+.mc-label { font-size: 9px; font-weight: 600; font-family: var(--font-head); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin-bottom: 3px; }
+.mc-value { font-family: var(--font-num); font-size: 15px; font-weight: 500; }
+.mc-sub   { font-size: 10px; color: var(--text-3); margin-top: 1px; }
+
+/* ══════════════════════════════════════════════════════
+   HEATMAP PAGE
+══════════════════════════════════════════════════════ */
+.heatmap-controls {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-bottom: 1px solid var(--border-std);
+  background: var(--bg-surface); flex-shrink: 0; flex-wrap: wrap;
+}
+.ctrl-group { display: flex; gap: 3px; }
+.heatmap-body { flex: 1; padding: 12px 16px; overflow-y: auto; }
+.hm-legend {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 16px 10px; flex-wrap: wrap;
+}
+.lbox { width: 14px; height: 7px; border-radius: 2px; display: inline-block; }
+
+/* ══════════════════════════════════════════════════════
+   TREEMAP ENGINE
+══════════════════════════════════════════════════════ */
+.tm-wrap { display: flex; flex-direction: column; gap: 2px; }
+.tm-row  { display: flex; gap: 2px; }
+.tm-block {
+  border-radius: 5px; padding: 6px 8px; cursor: pointer; overflow: hidden;
+  border: 1.5px solid transparent; transition: border-color .1s, opacity .1s;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.tm-block:hover { border-color: rgba(255,255,255,.4); opacity: .9; }
+.tm-name { font-size: 10px; font-weight: 600; font-family: var(--font-head); color: #fff; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-chg  { font-size: 10px; color: rgba(255,255,255,.75); font-family: var(--font-num); }
+.tm-stocks { display: flex; flex-wrap: wrap; gap: 1px; margin-top: 5px; }
+.tm-stock  {
+  border-radius: 3px; padding: 2px 5px; cursor: pointer;
+  border: 1px solid transparent; transition: border-color .1s;
+}
+.tm-stock:hover { border-color: rgba(255,255,255,.4); }
+.tm-st-sym { font-size: 9px; font-weight: 700; font-family: var(--font-head); color: #fff; }
+.tm-st-chg { font-size: 9px; color: rgba(255,255,255,.75); font-family: var(--font-num); }
+
+/* ══════════════════════════════════════════════════════
+   SIGNALS PAGE
+══════════════════════════════════════════════════════ */
+.signals-page { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.signal-full-card {
+  background: var(--bg-surface); border: 1px solid var(--border-std);
+  border-radius: var(--r-xl); padding: 16px; cursor: pointer;
+  transition: all var(--trans);
+}
+.signal-full-card:hover { border-color: var(--border-bold); background: var(--bg-elevated); }
+.sfc-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+.sfc-left { display: flex; align-items: center; gap: 12px; }
+.sfc-icon {
+  width: 42px; height: 42px; border-radius: var(--r-md);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head); font-size: 14px; font-weight: 800; color: #fff;
+}
+.sfc-ticker { font-family: var(--font-head); font-size: 18px; font-weight: 800; color: var(--text-1); }
+.sfc-name   { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+.sfc-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin-bottom: 12px; }
+.sfc-metric { background: var(--bg-elevated); border-radius: var(--r-md); padding: 8px 10px; }
+.sfc-ml { font-size: 9px; font-weight: 600; font-family: var(--font-head); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin-bottom: 2px; }
+.sfc-mv { font-family: var(--font-num); font-size: 14px; font-weight: 500; }
+.score-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.score-bar-outer { flex: 1; height: 6px; background: var(--border-std); border-radius: 3px; overflow: hidden; }
+.score-bar-inner { height: 100%; border-radius: 3px; transition: width 700ms cubic-bezier(.4,0,.2,1); }
+.sfc-actions { display: flex; gap: 8px; }
+
+/* ══════════════════════════════════════════════════════
+   PORTFOLIO PAGE
+══════════════════════════════════════════════════════ */
+.portfolio-page { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.port-kpi-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+.kpi-card {
+  background: var(--bg-surface); border: 1px solid var(--border-std);
+  border-radius: var(--r-lg); padding: 14px 16px;
+}
+.kpi-label { font-size: 9px; font-weight: 600; font-family: var(--font-head); letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); margin-bottom: 6px; }
+.kpi-value { font-family: var(--font-num); font-size: 22px; font-weight: 500; color: var(--text-1); }
+.kpi-sub   { font-size: 10px; color: var(--text-3); margin-top: 3px; }
+
+.port-table-wrap {
+  background: var(--bg-surface); border: 1px solid var(--border-std);
+  border-radius: var(--r-xl); overflow: hidden;
+}
+.port-table-hdr {
+  display: grid; grid-template-columns: 60px 1fr 100px 100px 70px 70px 60px;
+  gap: 0; padding: 10px 16px;
+  background: var(--bg-elevated); border-bottom: 1px solid var(--border-std);
+  font-size: 9px; font-weight: 600; font-family: var(--font-head);
+  letter-spacing: .07em; text-transform: uppercase; color: var(--text-3);
+}
+.port-table-row {
+  display: grid; grid-template-columns: 60px 1fr 100px 100px 70px 70px 60px;
+  gap: 0; padding: 12px 16px; border-bottom: 1px solid var(--border-dim);
+  cursor: pointer; transition: background var(--trans); align-items: center;
+}
+.port-table-row:last-child { border-bottom: none; }
+.port-table-row:hover { background: var(--bg-hover); }
+.pt-ticker { font-family: var(--font-head); font-size: 14px; font-weight: 800; color: var(--text-1); }
+.pt-name   { font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+.pt-name-sub { font-size: 10px; color: var(--text-3); }
+.pt-num    { font-family: var(--font-num); font-size: 12px; color: var(--text-1); }
+.pt-small  { font-family: var(--font-num); font-size: 10px; color: var(--text-3); margin-top: 1px; }
+.port-chart-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.port-chart-card {
+  background: var(--bg-surface); border: 1px solid var(--border-std);
+  border-radius: var(--r-xl); padding: 16px;
+}
+
+/* ══════════════════════════════════════════════════════
+   MACRO PAGE
+══════════════════════════════════════════════════════ */
+.macro-page { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.macro-grid-lg { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+.macro-card {
+  background: var(--bg-surface); border: 1px solid var(--border-std);
+  border-radius: var(--r-xl); padding: 14px 16px; cursor: pointer;
+  transition: all var(--trans);
+}
+.macro-card:hover { border-color: var(--border-bold); background: var(--bg-elevated); }
+.macro-label { font-size: 9px; font-weight: 600; font-family: var(--font-head); letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); margin-bottom: 6px; }
+.macro-value { font-family: var(--font-num); font-size: 20px; font-weight: 500; }
+.macro-sub   { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+.macro-signal-list { display: flex; flex-direction: column; gap: 4px; }
+.macro-sig {
+  display: flex; gap: 8px; padding: 8px 12px; border-radius: var(--r-md);
+  background: var(--bg-elevated); font-size: 11px; color: var(--text-2); line-height: 1.5;
+}
+.macro-sig b { color: var(--text-1); font-weight: 500; }
+.ms-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+
+/* ══════════════════════════════════════════════════════
+   JOURNAL PAGE
+══════════════════════════════════════════════════════ */
+.journal-page { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.journal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.bias-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.bias-card {
+  background: var(--bg-surface); border: 1px solid var(--border-std);
+  border-radius: var(--r-xl); padding: 14px;
+}
+.bias-crit { border-top: 2px solid var(--red); }
+.bias-warn { border-top: 2px solid var(--amber); }
+.bias-ok   { border-top: 2px solid var(--green); }
+.bias-name  { font-family: var(--font-head); font-size: 12px; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
+.bias-count { font-family: var(--font-num); font-size: 22px; font-weight: 500; margin-bottom: 2px; }
+.bias-cost  { font-size: 11px; color: var(--text-3); }
+.bias-desc  { font-size: 11px; color: var(--text-2); line-height: 1.5; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-dim); }
+.journal-table-hdr {
+  display: grid; grid-template-columns: 60px 60px 100px 80px 60px 80px 1fr;
+  padding: 8px 14px; background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-std);
+  font-size: 9px; font-weight: 600; font-family: var(--font-head);
+  letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);
+}
+.journal-table-row {
+  display: grid; grid-template-columns: 60px 60px 100px 80px 60px 80px 1fr;
+  padding: 10px 14px; border-bottom: 1px solid var(--border-dim);
+  font-size: 11px; align-items: center; cursor: pointer; transition: background var(--trans);
+}
+.journal-table-row:hover { background: var(--bg-hover); }
+.journal-table-row:last-child { border-bottom: none; }
+
+/* ══════════════════════════════════════════════════════
+   DETAIL PANEL (right-side drawer)
+══════════════════════════════════════════════════════ */
+.detail-panel {
+  display: none;
+  position: absolute; top: 0; right: 0; bottom: 0; width: 380px;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-bold);
+  box-shadow: -8px 0 32px rgba(0,0,0,0.5);
+  z-index: 200; overflow-y: auto; flex-direction: column;
+}
+.detail-panel.open { display: flex; animation: slideIn 200ms ease; }
+.dp-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-bottom: 1px solid var(--border-std); flex-shrink: 0;
+}
+.dp-title { font-family: var(--font-head); font-size: 14px; font-weight: 700; color: var(--text-1); flex: 1; }
+.dp-body  { padding: 14px 16px; flex: 1; }
+.dp-kpi-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+.dp-kpi { background: var(--bg-elevated); border-radius: var(--r-md); padding: 9px 11px; }
+.dp-kl { font-size: 9px; font-weight: 600; font-family: var(--font-head); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin-bottom: 2px; }
+.dp-kv { font-family: var(--font-num); font-size: 14px; font-weight: 500; }
+.dp-kh { font-size: 10px; color: var(--text-3); margin-top: 1px; }
+.dp-sigs { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+.dp-sig {
+  display: flex; gap: 8px; padding: 7px 10px;
+  border-radius: var(--r-md); background: var(--bg-elevated);
+  font-size: 11px; color: var(--text-2); line-height: 1.5;
+}
+.dp-sig b { color: var(--text-1); font-weight: 500; }
+.dp-sig-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.dp-actions { display: flex; gap: 6px; }
+
+/* ══════════════════════════════════════════════════════
+   TRADE MODAL
+══════════════════════════════════════════════════════ */
+.modal-overlay {
+  display: none; position: absolute; inset: 0; z-index: 300;
+  background: rgba(8,12,18,.8); backdrop-filter: blur(4px);
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; animation: fadeUp 180ms ease; }
+.modal {
+  background: var(--bg-surface); border: 1px solid var(--border-bold);
+  border-radius: var(--r-xl); width: 440px; max-width: 95vw;
+  box-shadow: var(--shadow-card), 0 0 0 1px rgba(255,255,255,.04);
+  overflow: hidden;
+}
+.modal-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--border-std);
+}
+.modal-title { font-family: var(--font-head); font-size: 15px; font-weight: 800; color: var(--text-1); }
+.modal-body  { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+.form-group  { display: flex; flex-direction: column; gap: 6px; }
+.form-label  { font-size: 10px; font-weight: 600; font-family: var(--font-head); letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); }
+.form-input {
+  width: 100%; height: 40px; padding: 0 12px;
+  background: var(--bg-elevated); border: 1px solid var(--border-std);
+  border-radius: var(--r-md); color: var(--text-1); font-family: var(--font-num);
+  font-size: 14px; outline: none; transition: border-color var(--trans);
+}
+.form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.order-type-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 4px; }
+.ot-btn {
+  padding: 8px; font-size: 11px; font-family: var(--font-head); font-weight: 600;
+  background: var(--bg-elevated); border: 1px solid var(--border-std);
+  border-radius: var(--r-md); color: var(--text-2); cursor: pointer; text-align: center;
+  transition: all var(--trans);
+}
+.ot-btn.active, .ot-btn:hover { background: var(--accent-dim); color: var(--accent); border-color: rgba(61,142,248,.3); }
+.trade-summary {
+  background: var(--bg-elevated); border-radius: var(--r-md);
+  border: 1px solid var(--border-std); padding: 12px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.ts-row { display: flex; justify-content: space-between; font-size: 11px; }
+.ts-key { color: var(--text-3); }
+.ts-val { font-family: var(--font-num); font-weight: 500; color: var(--text-1); }
+.crv-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--green-dim); color: var(--green);
+  border: 1px solid rgba(34,197,94,.2); border-radius: var(--r-full);
+  padding: 2px 8px; font-family: var(--font-num); font-size: 11px; font-weight: 600;
+}
+.modal-footer { padding: 12px 20px; border-top: 1px solid var(--border-std); display: flex; gap: 8px; }
+
+/* ── Relative pos for detail overlay ────────────── */
+.relative { position: relative; }
+
+/* ── Misc utilities ───────────────────────────────── */
+.divider { height: 1px; background: var(--border-dim); margin: 0; }
+.text-green { color: var(--green); } .text-red { color: var(--red); } .text-amber { color: var(--amber); } .text-accent { color: var(--accent); }
+.text-num { font-family: var(--font-num); }
+.flex { display: flex; } .items-center { align-items: center; } .gap-8 { gap: 8px; } .gap-6 { gap: 6px; }
+.ml-auto { margin-left: auto; }
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="app relative" id="app">
+
+<!-- ══════════════════════════════════════════════════
+     TOP BAR
+══════════════════════════════════════════════════ -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <div class="brand-logo">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M3 13L7.5 7.5L11 10.5L15 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="15" cy="4" r="1.8" fill="white"/>
+      </svg>
+    </div>
+    <span class="brand-name">TradeApp</span>
+    <div class="brand-live"><span class="live-dot"></span>Live · 27 Mär 2026</div>
+  </div>
+
+  <div class="topbar-actions">
+    <div class="portfolio-badge" onclick="openDetail('portfolio-overview')">
+      <div class="portfolio-value">CHF 284'620</div>
+      <div class="portfolio-chg">▲ +1'240 (+0.44%) heute</div>
+    </div>
+
+    <button class="icon-btn" onclick="openDetail('alerts')" title="Alerts">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 2a5 5 0 00-5 5v1.5L2 10v.5h12V10l-1-1.5V7a5 5 0 00-5-5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+        <path d="M6.5 12a1.5 1.5 0 003 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <span class="notif-badge">3</span>
+    </button>
+
+    <button class="icon-btn" onclick="toggleTheme()" title="Theme" id="themeBtn">
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+        <circle cx="7.5" cy="7.5" r="3" stroke="currentColor" stroke-width="1.3"/>
+        <path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M3.1 3.1l1.06 1.06M10.84 10.84l1.06 1.06M3.1 11.9l1.06-1.06M10.84 4.16l1.06-1.06" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+    </button>
+
+    <button class="btn btn-buy btn-lg btn-pill" onclick="openTradeModal()">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+        <path d="M6.5 1.5v10M1.5 6.5h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      Trade
+    </button>
+  </div>
+</header>
+
+<!-- Alert Strip -->
+<div class="alert-strip" id="alertStrip">
+  <div class="alert-item" onclick="openDetail('geopolitik')">
+    <span class="a-dot a-red"></span>
+    <span><b>Iran · Öl $99.40</b> — Woche 4, Straße von Hormuz blockiert</span>
+  </div>
+  <div class="alert-item" onclick="openDetail('arbeitsmarkt')">
+    <span class="a-dot a-red"></span>
+    <span><b>NFP −92k</b> — Erwartet +60k · Rezessionsrisiko steigt</span>
+  </div>
+  <div class="alert-item" onclick="openDetail('zinsen')">
+    <span class="a-dot a-amber"></span>
+    <span><b>Fed 3.75%</b> — Pause · Nächste Senkung Jul 2026</span>
+  </div>
+  <div class="alert-item" onclick="openDetail('msft')">
+    <span class="a-dot a-green"></span>
+    <span><b>MSFT Score 80</b> — Kaufsignal · CRV 1:2.8</span>
+  </div>
+  <div class="alert-strip-all">
+    <button class="btn btn-ghost btn-xs btn-pill" onclick="openDetail('alerts')">Alle →</button>
+  </div>
+</div>
+
+<!-- Nav Tabs -->
+<nav class="nav-tabs">
+  <div class="nav-tab active" onclick="setPage('home',this)" data-page="home">
+    <svg viewBox="0 0 14 14" fill="none"><path d="M2 8L7 3l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="3" y="8" width="3" height="4" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="8" width="3" height="4" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+    Übersicht
+  </div>
+  <div class="nav-tab" onclick="setPage('heatmap',this)" data-page="heatmap">
+    <svg viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="1.5" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1.5" y="8" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="8" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+    Heatmap
+  </div>
+  <div class="nav-tab" onclick="setPage('signals',this)" data-page="signals">
+    <svg viewBox="0 0 14 14" fill="none"><path d="M2 10L5 6l3 3 3-5 2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Signale
+  </div>
+  <div class="nav-tab" onclick="setPage('portfolio',this)" data-page="portfolio">
+    <svg viewBox="0 0 14 14" fill="none"><rect x="2" y="4" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 4V3a2 2 0 014 0v1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+    Portfolio
+  </div>
+  <div class="nav-tab" onclick="setPage('macro',this)" data-page="macro">
+    <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M2 7h10M7 2c-2.2 1.5-2.2 8.5 0 10M7 2c2.2 1.5 2.2 8.5 0 10" stroke="currentColor" stroke-width="1.1"/></svg>
+    Makro
+  </div>
+  <div class="nav-tab" onclick="setPage('journal',this)" data-page="journal">
+    <svg viewBox="0 0 14 14" fill="none"><rect x="2" y="1.5" width="10" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 5h4M5 7.5h4M5 10h2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    Journal
+  </div>
+</nav>
+
+<!-- Pulse Strip (Indices) -->
+<div class="pulse-strip" id="pulseStrip">
+  <div class="pulse-item" onclick="openDetail('sp500')">
+    <div class="pi-label">S&P 500</div>
+    <div class="pi-value">5'218</div>
+    <div class="pi-chg dn">▼ −0.82%</div>
+  </div>
+  <div class="pulse-item" onclick="openDetail('nasdaq')">
+    <div class="pi-label">NASDAQ</div>
+    <div class="pi-value">23'898</div>
+    <div class="pi-chg dn">▼ −1.14%</div>
+  </div>
+  <div class="pulse-item" onclick="openDetail('smi')">
+    <div class="pi-label">SMI</div>
+    <div class="pi-value">12'480</div>
+    <div class="pi-chg up">▲ +0.31%</div>
+  </div>
+  <div class="pulse-item" onclick="openDetail('dax')">
+    <div class="pi-label">DAX</div>
+    <div class="pi-value">22'150</div>
+    <div class="pi-chg up">▲ +0.54%</div>
+  </div>
+  <div class="pulse-item" onclick="openDetail('gold')">
+    <div class="pi-label">Gold XAU</div>
+    <div class="pi-value">$4'850</div>
+    <div class="pi-chg dn">▼ −0.30%</div>
+  </div>
+  <div class="pulse-item" onclick="openDetail('oel')">
+    <div class="pi-label">Öl WTI</div>
+    <div class="pi-value">$99.40</div>
+    <div class="pi-chg up">▲ +1.21%</div>
+  </div>
+  <div class="pulse-item" onclick="openDetail('eurchf')">
+    <div class="pi-label">EUR/CHF</div>
+    <div class="pi-value">0.9372</div>
+    <div class="pi-chg dn">▼ −0.21%</div>
+  </div>
+  <div class="pulse-item" onclick="openDetail('vix')">
+    <div class="pi-label">VIX</div>
+    <div class="pi-value">24.5</div>
+    <div class="pi-chg neu">→ −1.20</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MAIN CONTENT AREA
+══════════════════════════════════════════════════ -->
+<div class="main-content">
+
+<!-- ── HOME PAGE ──────────────────────────────────── -->
+<div class="page active" id="page-home">
+  <div class="home-grid">
+
+    <!-- LEFT COLUMN -->
+    <div class="home-left">
+
+      <!-- Sentiment -->
+      <div class="section-hdr">
+        <span class="label-caps">Marktlage</span>
+        <button class="btn btn-ghost btn-xs btn-pill" onclick="openDetail('sentiment')">Details →</button>
+      </div>
+      <div class="sentiment-grid stagger">
+        <div class="sent-card" onclick="openDetail('sentiment')">
+          <div class="sc-label">Fear & Greed</div>
+          <div class="sc-value text-red">32</div>
+          <div class="sc-sub">Angst-Zone</div>
+          <div style="margin-top:7px"><span class="tag tag-info">Hist. Kaufsignal</span></div>
+        </div>
+        <div class="sent-card" onclick="openDetail('zinsen')">
+          <div class="sc-label">Fed Rate</div>
+          <div class="sc-value">3.75%</div>
+          <div class="sc-sub">Pause · 2. Sitzung</div>
+          <div style="margin-top:7px"><span class="tag tag-hold">Nächste: Jul 26</span></div>
+        </div>
+        <div class="sent-card" onclick="openDetail('arbeitsmarkt')">
+          <div class="sc-label">NFP Februar</div>
+          <div class="sc-value text-red">−92k</div>
+          <div class="sc-sub">Erw. +60k</div>
+          <div style="margin-top:7px"><span class="tag tag-sell">Rezessionsrisiko</span></div>
+        </div>
+        <div class="sent-card" onclick="openDetail('marktphase')">
+          <div class="sc-label">Marktphase</div>
+          <div class="sc-value text-amber" style="font-size:16px">Korrektur</div>
+          <div class="sc-sub">Tech −12% YTD</div>
+          <div style="margin-top:7px"><span class="tag tag-hold">Defensiv posit.</span></div>
+        </div>
+      </div>
+
+      <!-- Mini Heatmap -->
+      <div class="section-hdr">
+        <span class="label-caps">Sektor-Heatmap</span>
+        <button class="btn btn-ghost btn-xs btn-pill" onclick="setPage('heatmap',document.querySelectorAll('.nav-tab')[1])">Vollbild →</button>
+      </div>
+      <div class="mini-tm-wrap">
+        <div id="mini-treemap"></div>
+      </div>
+
+      <!-- KI Briefing -->
+      <div class="section-hdr">
+        <span class="label-caps">KI-Tagesbriefing</span>
+        <span class="tag tag-info" style="font-size:9px">27 Mär · 15:42</span>
+      </div>
+      <div class="briefing-list stagger">
+        <div class="brief-row" onclick="openDetail('geopolitik')">
+          <div class="brief-dot" style="background:var(--red)"></div>
+          <div class="brief-text"><b>Energie profitiert massiv</b> — Öl $99 durch Iran-Krieg. XOM, CVX, Shell stark. Airlines und Transport leiden.</div>
+          <span class="brief-arr">›</span>
+        </div>
+        <div class="brief-row" onclick="openDetail('msft')">
+          <div class="brief-dot" style="background:var(--green)"></div>
+          <div class="brief-text"><b>MSFT Kaufsignal</b> — Score 80/100, −33% vom ATH, Fundamentals intakt. Azure +29% YoY ignoriert.</div>
+          <span class="brief-arr">›</span>
+        </div>
+        <div class="brief-row" onclick="openDetail('arbeitsmarkt')">
+          <div class="brief-dot" style="background:var(--red)"></div>
+          <div class="brief-text"><b>NFP −92k Schock</b> — Defensiv positionieren. Zykliker reduzieren. NOVN, Versorger, Pharma als Schutz.</div>
+          <span class="brief-arr">›</span>
+        </div>
+        <div class="brief-row" onclick="openDetail('gold')">
+          <div class="brief-dot" style="background:var(--amber)"></div>
+          <div class="brief-text"><b>Gold-Konsolidierung</b> — $4'850, Support $4'550 intakt. GLD −$2.1 Mrd. Abfluss = Profit-Taking, kein Trendbruch.</div>
+          <span class="brief-arr">›</span>
+        </div>
+        <div class="brief-row" onclick="openDetail('sentiment')">
+          <div class="brief-dot" style="background:var(--green)"></div>
+          <div class="brief-text"><b>Fear & Greed 32</b> — Historisch: Unter 35 = immer starke Einstiegspunkte in Qualitätsaktien. Geduld zahlt sich aus.</div>
+          <span class="brief-arr">›</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="home-right">
+
+      <!-- Top Signale -->
+      <div class="section-hdr">
+        <span class="label-caps">Top-Signale</span>
+        <button class="btn btn-ghost btn-xs btn-pill" onclick="setPage('signals',document.querySelectorAll('.nav-tab')[2])">Alle →</button>
+      </div>
+      <div class="signal-list stagger">
+        <div class="sig-card" onclick="openDetail('nvda')">
+          <span class="sig-ticker">NVDA</span>
+          <div class="sig-meta">
+            <div class="sig-row1">
+              <span class="tag tag-buy">Kaufen</span>
+              <span class="sig-price">$879 · CRV 1:3.1</span>
+            </div>
+            <div class="sig-bar-wrap">
+              <div class="sig-bar-track"><div class="sig-bar-fill" style="width:85%;background:var(--green)"></div></div>
+              <span class="sig-score">85/100</span>
+            </div>
+          </div>
+          <div class="sig-actions">
+            <button class="btn btn-buy btn-xs btn-pill" onclick="event.stopPropagation();openTradeModal('NVDA')">Kaufen</button>
+          </div>
+        </div>
+        <div class="sig-card" onclick="openDetail('msft')">
+          <span class="sig-ticker">MSFT</span>
+          <div class="sig-meta">
+            <div class="sig-row1">
+              <span class="tag tag-buy">Kaufen</span>
+              <span class="sig-price">$371 · CRV 1:2.8</span>
+            </div>
+            <div class="sig-bar-wrap">
+              <div class="sig-bar-track"><div class="sig-bar-fill" style="width:80%;background:var(--green)"></div></div>
+              <span class="sig-score">80/100</span>
+            </div>
+          </div>
+          <div class="sig-actions">
+            <button class="btn btn-buy btn-xs btn-pill" onclick="event.stopPropagation();openTradeModal('MSFT')">Kaufen</button>
+          </div>
+        </div>
+        <div class="sig-card" onclick="openDetail('novn')">
+          <span class="sig-ticker">NOVN</span>
+          <div class="sig-meta">
+            <div class="sig-row1">
+              <span class="tag tag-buy">Kaufen</span>
+              <span class="sig-price">CHF 92 · Div. 3.2%</span>
+            </div>
+            <div class="sig-bar-wrap">
+              <div class="sig-bar-track"><div class="sig-bar-fill" style="width:75%;background:var(--green)"></div></div>
+              <span class="sig-score">75/100</span>
+            </div>
+          </div>
+          <div class="sig-actions">
+            <button class="btn btn-buy btn-xs btn-pill" onclick="event.stopPropagation();openTradeModal('NOVN')">Kaufen</button>
+          </div>
+        </div>
+        <div class="sig-card" onclick="openDetail('tsla')">
+          <span class="sig-ticker">TSLA</span>
+          <div class="sig-meta">
+            <div class="sig-row1">
+              <span class="tag tag-avoid">Meiden</span>
+              <span class="sig-price">$248 · P/E 68x</span>
+            </div>
+            <div class="sig-bar-wrap">
+              <div class="sig-bar-track"><div class="sig-bar-fill" style="width:58%;background:var(--red)"></div></div>
+              <span class="sig-score">58/100</span>
+            </div>
+          </div>
+          <div class="sig-actions">
+            <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetail('tsla')">Info</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider" style="margin:2px 12px"></div>
+
+      <!-- Portfolio Mini -->
+      <div class="section-hdr">
+        <span class="label-caps">Portfolio</span>
+        <button class="btn btn-ghost btn-xs btn-pill" onclick="setPage('portfolio',document.querySelectorAll('.nav-tab')[3])">Alle →</button>
+      </div>
+      <div class="port-rows stagger">
+        <div class="port-row" onclick="openDetail('nvda')">
+          <span class="port-ticker">NVDA</span>
+          <div class="port-middle">
+            <div class="port-name">NVIDIA · 18.3%</div>
+            <div class="port-bar"><div class="port-bar-fill" style="width:100%;background:var(--green);height:3px;border-radius:2px"></div></div>
+          </div>
+          <div class="port-right">
+            <div class="port-val">CHF 52'100</div>
+            <div class="port-pnl up">+12.1%</div>
+          </div>
+        </div>
+        <div class="port-row" onclick="openDetail('msft')">
+          <span class="port-ticker">MSFT</span>
+          <div class="port-middle">
+            <div class="port-name">Microsoft · 17.0%</div>
+            <div class="port-bar"><div class="port-bar-fill" style="width:83%;background:var(--red);height:3px;border-radius:2px"></div></div>
+          </div>
+          <div class="port-right">
+            <div class="port-val">CHF 48'240</div>
+            <div class="port-pnl dn">−8.4%</div>
+          </div>
+        </div>
+        <div class="port-row" onclick="openDetail('novn')">
+          <span class="port-ticker">NOVN</span>
+          <div class="port-middle">
+            <div class="port-name">Novartis · 13.6%</div>
+            <div class="port-bar"><div class="port-bar-fill" style="width:66%;background:var(--green);height:3px;border-radius:2px"></div></div>
+          </div>
+          <div class="port-right">
+            <div class="port-val">CHF 38'800</div>
+            <div class="port-pnl up">+4.2%</div>
+          </div>
+        </div>
+        <div class="port-row" onclick="openDetail('gold')">
+          <span class="port-ticker">ZGLD</span>
+          <div class="port-middle">
+            <div class="port-name">Gold ETF · 11.4%</div>
+            <div class="port-bar"><div class="port-bar-fill" style="width:55%;background:var(--green);height:3px;border-radius:2px"></div></div>
+          </div>
+          <div class="port-right">
+            <div class="port-val">CHF 32'400</div>
+            <div class="port-pnl up">+18.4%</div>
+          </div>
+        </div>
+        <div class="port-row">
+          <span class="port-ticker" style="color:var(--text-3)">Cash</span>
+          <div class="port-middle">
+            <div class="port-name">Liquidität · 39.7%</div>
+            <div class="port-bar"><div class="port-bar-fill" style="width:39%;background:var(--accent);height:3px;border-radius:2px"></div></div>
+          </div>
+          <div class="port-right">
+            <div class="port-val">CHF 113'080</div>
+            <div class="port-pnl neu">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider" style="margin:2px 12px"></div>
+
+      <!-- Makro Mini -->
+      <div class="section-hdr">
+        <span class="label-caps">Makro-Radar</span>
+        <button class="btn btn-ghost btn-xs btn-pill" onclick="setPage('macro',document.querySelectorAll('.nav-tab')[4])">Alle →</button>
+      </div>
+      <div class="macro-mini stagger">
+        <div class="mc-tile" onclick="openDetail('inflation')">
+          <div class="mc-label">Inflation PCE</div>
+          <div class="mc-value text-amber">2.7%</div>
+          <div class="mc-sub">Über 2%-Ziel</div>
+        </div>
+        <div class="mc-tile" onclick="openDetail('zinsen')">
+          <div class="mc-label">Fed Rate</div>
+          <div class="mc-value">3.75%</div>
+          <div class="mc-sub">Pause</div>
+        </div>
+        <div class="mc-tile" onclick="openDetail('gold')">
+          <div class="mc-label">Gold</div>
+          <div class="mc-value text-amber">$4'850</div>
+          <div class="mc-sub">Konsolidierung</div>
+        </div>
+        <div class="mc-tile" onclick="openDetail('oel')">
+          <div class="mc-label">Öl WTI</div>
+          <div class="mc-value text-red">$99.40</div>
+          <div class="mc-sub">Iran-Risiko</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── HEATMAP PAGE ────────────────────────────────── -->
+<div class="page" id="page-heatmap">
+  <div class="heatmap-controls">
+    <span class="label-caps" style="margin-right:4px">Ansicht</span>
+    <div class="ctrl-group">
+      <button class="btn btn-primary btn-xs btn-pill" id="hv-sec" onclick="setHv('sec',this)">Sektoren</button>
+      <button class="btn btn-ghost btn-xs btn-pill" id="hv-reg" onclick="setHv('reg',this)">Kontinente</button>
+      <button class="btn btn-ghost btn-xs btn-pill" id="hv-cty" onclick="setHv('cty',this)">Länder</button>
+      <button class="btn btn-ghost btn-xs btn-pill" id="hv-fx" onclick="setHv('fx',this)">Währungen</button>
+    </div>
+    <div style="width:1px;height:20px;background:var(--border-std);margin:0 4px"></div>
+    <span class="label-caps" style="margin-right:4px">Zeitraum</span>
+    <div class="ctrl-group">
+      <button class="btn btn-primary btn-xs btn-pill" id="ht-1d" onclick="setHt('1d',this)">1T</button>
+      <button class="btn btn-ghost btn-xs btn-pill" id="ht-1w" onclick="setHt('1w',this)">1W</button>
+      <button class="btn btn-ghost btn-xs btn-pill" id="ht-1m" onclick="setHt('1m',this)">1M</button>
+      <button class="btn btn-ghost btn-xs btn-pill" id="ht-ytd" onclick="setHt('ytd',this)">YTD</button>
+    </div>
+  </div>
+  <div class="heatmap-body" id="full-heatmap"></div>
+  <div class="hm-legend">
+    <span style="font-size:10px;color:var(--text-3)">Performance:</span>
+    <span class="lbox" style="background:#450a0a"></span>
+    <span class="lbox" style="background:#991b1b"></span>
+    <span class="lbox" style="background:#dc2626"></span>
+    <span class="lbox" style="background:#f87171"></span>
+    <span style="font-size:10px;color:var(--text-3)">negativ</span>
+    <span class="lbox" style="background:#374151;margin:0 4px"></span>
+    <span style="font-size:10px;color:var(--text-3)">neutral</span>
+    <span class="lbox" style="background:#4ade80"></span>
+    <span class="lbox" style="background:#16a34a"></span>
+    <span class="lbox" style="background:#15803d"></span>
+    <span class="lbox" style="background:#14532d"></span>
+    <span style="font-size:10px;color:var(--text-3)">positiv · Klick = Detailanalyse</span>
+  </div>
+</div>
+
+<!-- ── SIGNALS PAGE ────────────────────────────────── -->
+<div class="page" id="page-signals">
+  <div class="signals-page">
+
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span class="label-caps">Kaufsignale — 27. März 2026</span>
+      <button class="btn btn-ai btn-sm" onclick="alert('KI-Screener wird gestartet…\n\nIn der Prod-App: Claude API scannt 500+ Aktien nach Score >75 und CRV >1:2')">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 6h3M6 4.5v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        KI-Screener ↗
+      </button>
+    </div>
+
+    <div id="signals-list" class="stagger"></div>
+
+    <div style="text-align:center;padding:16px">
+      <button class="btn btn-ghost btn-md" onclick="openDetail('tsla')">Meiden-Liste anzeigen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── PORTFOLIO PAGE ──────────────────────────────── -->
+<div class="page" id="page-portfolio">
+  <div class="portfolio-page">
+
+    <div class="port-kpi-grid stagger">
+      <div class="kpi-card">
+        <div class="kpi-label">Gesamtwert</div>
+        <div class="kpi-value">CHF 284'620</div>
+        <div class="kpi-sub up">▲ +1'240 heute</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">YTD Performance</div>
+        <div class="kpi-value text-red">−3.2%</div>
+        <div class="kpi-sub">vs. SMI +2.1%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Portfolio-Score</div>
+        <div class="kpi-value text-green">74/100</div>
+        <div class="kpi-sub">Solide aufgestellt</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Cash-Quote</div>
+        <div class="kpi-value text-accent">39.7%</div>
+        <div class="kpi-sub">CHF 113'080 bereit</div>
+      </div>
+    </div>
+
+    <div class="port-table-wrap">
+      <div class="port-table-hdr">
+        <span>Titel</span><span>Name</span><span>Wert CHF</span><span>Kurs</span><span>G/V %</span><span>Score</span><span>Aktion</span>
+      </div>
+      <div class="port-table-row" onclick="openDetail('nvda')">
+        <span class="pt-ticker">NVDA</span>
+        <div><div class="pt-name">NVIDIA Corp.</div><div class="pt-name-sub">18.3% · NASDAQ</div></div>
+        <div><div class="pt-num">52'100</div><div class="pt-small">59 Stk.</div></div>
+        <div><div class="pt-num">$879.50</div><div class="pt-small up">▲ +2.43%</div></div>
+        <div class="pt-num up">+12.1%</div>
+        <div><span class="tag tag-buy" style="font-size:9px">85</span></div>
+        <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetail('nvda')">Analyse</button>
+      </div>
+      <div class="port-table-row" onclick="openDetail('msft')">
+        <span class="pt-ticker">MSFT</span>
+        <div><div class="pt-name">Microsoft Corp.</div><div class="pt-name-sub">17.0% · NASDAQ</div></div>
+        <div><div class="pt-num">48'240</div><div class="pt-small">130 Stk.</div></div>
+        <div><div class="pt-num">$371.04</div><div class="pt-small dn">▼ −0.46%</div></div>
+        <div class="pt-num dn">−8.4%</div>
+        <div><span class="tag tag-buy" style="font-size:9px">80</span></div>
+        <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetail('msft')">Analyse</button>
+      </div>
+      <div class="port-table-row" onclick="openDetail('novn')">
+        <span class="pt-ticker">NOVN</span>
+        <div><div class="pt-name">Novartis AG</div><div class="pt-name-sub">13.6% · SIX</div></div>
+        <div><div class="pt-num">38'800</div><div class="pt-small">420 Stk.</div></div>
+        <div><div class="pt-num">CHF 92.40</div><div class="pt-small up">▲ +0.81%</div></div>
+        <div class="pt-num up">+4.2%</div>
+        <div><span class="tag tag-buy" style="font-size:9px">75</span></div>
+        <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetail('novn')">Analyse</button>
+      </div>
+      <div class="port-table-row" onclick="openDetail('gold')">
+        <span class="pt-ticker">ZGLD</span>
+        <div><div class="pt-name">Gold ETF (ZGLD)</div><div class="pt-name-sub">11.4% · SIX</div></div>
+        <div><div class="pt-num">32'400</div><div class="pt-small">68 Anteile</div></div>
+        <div><div class="pt-num">CHF 476.47</div><div class="pt-small dn">▼ −0.30%</div></div>
+        <div class="pt-num up">+18.4%</div>
+        <div><span class="tag tag-buy" style="font-size:9px">77</span></div>
+        <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetail('gold')">Analyse</button>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="port-chart-row">
+      <div class="port-chart-card">
+        <div class="section-hdr" style="padding:0 0 10px"><span class="label-caps">Portfolio-Entwicklung (12 Monate)</span></div>
+        <div style="position:relative;height:160px"><canvas id="portChart"></canvas></div>
+      </div>
+      <div class="port-chart-card">
+        <div class="section-hdr" style="padding:0 0 10px"><span class="label-caps">Sektor-Allokation</span></div>
+        <div style="position:relative;height:160px"><canvas id="allocChart"></canvas></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary btn-lg" style="flex:1;justify-content:center" onclick="alert('Rebalancing-Analyse:\n\nEmpfehlung: MSFT und NVDA je 5% aufstocken\nCash-Quote von 40% auf 25% reduzieren\nNeue Position: NOVN aufstocken\n\nIn Prod-App: Claude API analysiert und generiert vollständigen Plan')">
+        Portfolio optimieren ↗
+      </button>
+      <button class="btn btn-ghost btn-lg" style="flex:1;justify-content:center" onclick="alert('Steuer-Report CH:\n\nRealisierte Gewinne: +CHF 4\'792 (ZGLD)\nStempelsteuer bezahlt: CHF 89.40\nVerrechnungssteuer: CHF 840\nVermögenssteuerwert 31.12.: CHF 284\'620\n\nIn Prod-App: Vollständiger ESTV-Report')">
+        Steuer-Report (CH)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MACRO PAGE ──────────────────────────────────── -->
+<div class="page" id="page-macro">
+  <div class="macro-page">
+
+    <div>
+      <div class="label-caps" style="margin-bottom:8px">Zentralbanken</div>
+      <div class="macro-grid-lg stagger">
+        <div class="macro-card" onclick="openDetail('zinsen')">
+          <div class="macro-label">Fed · USA</div>
+          <div class="macro-value">3.75%</div>
+          <div class="macro-sub">Pause · 2. Sitzung</div>
+          <div style="margin-top:8px"><span class="tag tag-hold">Nächste Jul 26</span></div>
+        </div>
+        <div class="macro-card" onclick="openDetail('snb')">
+          <div class="macro-label">SNB · Schweiz</div>
+          <div class="macro-value">0.50%</div>
+          <div class="macro-sub">Stabil</div>
+          <div style="margin-top:8px"><span class="tag tag-info">CHF Safe-Haven</span></div>
+        </div>
+        <div class="macro-card" onclick="openDetail('ezb')">
+          <div class="macro-label">EZB · Europa</div>
+          <div class="macro-value">2.40%</div>
+          <div class="macro-sub">Senkung mögl. Jun</div>
+          <div style="margin-top:8px"><span class="tag tag-buy">EU: günstig</span></div>
+        </div>
+        <div class="macro-card" onclick="openDetail('boj')">
+          <div class="macro-label">BoJ · Japan</div>
+          <div class="macro-value">0.50%</div>
+          <div class="macro-sub">Normalisierung</div>
+          <div style="margin-top:8px"><span class="tag tag-hold">JPY-Risiko</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="label-caps" style="margin-bottom:8px">Konjunktur & Märkte</div>
+      <div class="macro-grid-lg stagger">
+        <div class="macro-card" onclick="openDetail('inflation')">
+          <div class="macro-label">CPI USA</div>
+          <div class="macro-value text-amber">2.4%</div>
+          <div class="macro-sub">Kern: 2.5%</div>
+        </div>
+        <div class="macro-card" onclick="openDetail('arbeitsmarkt')">
+          <div class="macro-label">NFP Feb</div>
+          <div class="macro-value text-red">−92k</div>
+          <div class="macro-sub">Schock</div>
+        </div>
+        <div class="macro-card" onclick="openDetail('zinsen')">
+          <div class="macro-label">10J US-Rendite</div>
+          <div class="macro-value">4.15%</div>
+          <div class="macro-sub">Flache Kurve</div>
+        </div>
+        <div class="macro-card" onclick="openDetail('oel')">
+          <div class="macro-label">Öl WTI</div>
+          <div class="macro-value text-red">$99.40</div>
+          <div class="macro-sub">Iran-Effekt</div>
+        </div>
+        <div class="macro-card" onclick="openDetail('gold')">
+          <div class="macro-label">Gold XAU/USD</div>
+          <div class="macro-value text-amber">$4'850</div>
+          <div class="macro-sub">Konsolidierung</div>
+        </div>
+        <div class="macro-card" onclick="openDetail('sentiment')">
+          <div class="macro-label">Fear & Greed</div>
+          <div class="macro-value text-red">32</div>
+          <div class="macro-sub">Angst-Zone</div>
+        </div>
+        <div class="macro-card" onclick="openDetail('eurchf')">
+          <div class="macro-label">EUR/CHF</div>
+          <div class="macro-value">0.937</div>
+          <div class="macro-sub">Safe-Haven aktiv</div>
+        </div>
+        <div class="macro-card" onclick="openDetail('vix')">
+          <div class="macro-label">VIX</div>
+          <div class="macro-value text-amber">24.5</div>
+          <div class="macro-sub">Erhöht</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="label-caps" style="margin-bottom:8px">Makro-Signale</div>
+      <div class="macro-signal-list stagger">
+        <div class="macro-sig"><div class="ms-dot" style="background:var(--red)"></div><span><b>Fed-Dilemma:</b> Inflation 2.7% zu hoch + NFP −92k zu schwach = kein Spielraum für Zinssenkungen. Stagflationsrisiko steigt.</span></div>
+        <div class="macro-sig"><div class="ms-dot" style="background:var(--red)"></div><span><b>Öl $99 Inflationstreiber:</b> Iran-Konflikt hält Energiepreise hoch. Airlines, Chemie, Transport unter Marginendruck. Fed kann nicht senken.</span></div>
+        <div class="macro-sig"><div class="ms-dot" style="background:var(--green)"></div><span><b>CHF Safe-Haven:</b> EUR/CHF 0.937 zeigt aktiven Flucht in CHF. Schützt CHF-Portfolio automatisch. SNB beobachtet Interventionszone.</span></div>
+        <div class="macro-sig"><div class="ms-dot" style="background:var(--green)"></div><span><b>Fear & Greed 32:</b> Historisch: Unter 35 markiert immer starke Einstiegszonen für Qualitätsaktien. Markt übertreibt die Angst.</span></div>
+        <div class="macro-sig"><div class="ms-dot" style="background:var(--amber)"></div><span><b>EU günstig:</b> Stoxx 600 P/E 13.2x vs. S&P 500 19.8x. EZB-Spielraum für Senkungen. SAP, ASML, Siemens strukturell stark.</span></div>
+      </div>
+    </div>
+
+    <button class="btn btn-ai btn-lg" style="width:100%;justify-content:center" onclick="alert('KI-Analyse wird gestartet…\n\nIn der Prod-App: Claude erklärt alle Makro-Zusammenhänge und ihre konkreten Auswirkungen auf Ihr Portfolio')">
+      Makro-Zusammenhänge erklären ↗
+    </button>
+
+  </div>
+</div>
+
+<!-- ── JOURNAL PAGE ────────────────────────────────── -->
+<div class="page" id="page-journal">
+  <div class="journal-page">
+
+    <div class="port-kpi-grid stagger">
+      <div class="kpi-card">
+        <div class="kpi-label">Trades gesamt</div>
+        <div class="kpi-value">34</div>
+        <div class="kpi-sub">Letztes Jahr</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Trefferquote</div>
+        <div class="kpi-value text-green">62%</div>
+        <div class="kpi-sub">Ø Markt: 50%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Häufigster Bias</div>
+        <div class="kpi-value text-amber" style="font-size:16px">FOMO</div>
+        <div class="kpi-sub">8× erkannt</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Bias-Kosten</div>
+        <div class="kpi-value text-red">−CHF 8'240</div>
+        <div class="kpi-sub">Verlorene Rendite</div>
+      </div>
+    </div>
+
+    <div class="journal-grid">
+      <div>
+        <div class="label-caps" style="margin-bottom:8px">Bias-Analyse</div>
+        <div class="bias-grid stagger">
+          <div class="bias-card bias-crit">
+            <div class="bias-name">FOMO</div>
+            <div class="bias-count text-red">8×</div>
+            <div class="bias-cost">−CHF 4'120 · 50%</div>
+            <div class="bias-desc">Kauf nach starkem Anstieg ohne Rücksetzer. TSLA nach +18% — danach −22%.</div>
+          </div>
+          <div class="bias-card bias-crit">
+            <div class="bias-name">Loss Aversion</div>
+            <div class="bias-count text-red">6×</div>
+            <div class="bias-cost">−CHF 2'880 · 35%</div>
+            <div class="bias-desc">Stop-Loss ignoriert. Ø 4.2 Wochen über Limit gehalten. Gewinne zu früh realisiert.</div>
+          </div>
+          <div class="bias-card bias-warn">
+            <div class="bias-name">Rache-Trade</div>
+            <div class="bias-count text-amber">4×</div>
+            <div class="bias-cost">−CHF 980 · 12%</div>
+            <div class="bias-desc">Alle 4 innerhalb 2h nach Verlust-Trade. Alle 4 waren Verluste.</div>
+          </div>
+          <div class="bias-card bias-warn">
+            <div class="bias-name">Anchoring</div>
+            <div class="bias-count text-amber">5×</div>
+            <div class="bias-cost">−CHF 620 · 8%</div>
+            <div class="bias-desc">Fixierung auf Einstandskurs statt aktuelle Bewertung. Markt kennt deinen Kurs nicht.</div>
+          </div>
+          <div class="bias-card bias-warn">
+            <div class="bias-name">Overconfidence</div>
+            <div class="bias-count text-amber">3×</div>
+            <div class="bias-cost">−CHF 840 · 10%</div>
+            <div class="bias-desc">Nach 3+ Gewinnen Position um 84% erhöht. Alle 3 folgenden: Verluste.</div>
+          </div>
+          <div class="bias-card bias-ok">
+            <div class="bias-name">Confirmation</div>
+            <div class="bias-count text-green">2×</div>
+            <div class="bias-cost">−CHF 280 · 3%</div>
+            <div class="bias-desc">Nur 2 Mal gegenteilige Signale ignoriert. Investment Committee hilft.</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="label-caps" style="margin-bottom:8px">Performance-Chart</div>
+        <div class="port-chart-card" style="height:calc(100% - 28px)">
+          <div style="position:relative;height:180px;margin-bottom:12px"><canvas id="journalChart"></canvas></div>
+          <div style="background:var(--bg-elevated);border-radius:var(--r-md);padding:10px;font-size:11px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="color:var(--text-3)">Potenzial ohne Biases</span>
+              <span class="text-green text-num font-num">+CHF 9'440/Jahr</span>
+            </div>
+            <div style="height:4px;background:var(--border-std);border-radius:2px;overflow:hidden">
+              <div style="width:100%;height:100%;background:var(--green);border-radius:2px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trade Table -->
+    <div>
+      <div class="label-caps" style="margin-bottom:8px">Trade-Journal</div>
+      <div style="background:var(--bg-surface);border:1px solid var(--border-std);border-radius:var(--r-xl);overflow:hidden">
+        <div class="journal-table-hdr">
+          <span>Titel</span><span>Datum</span><span>Resultat</span><span>Haltezeit</span><span>CRV</span><span>Bias</span><span>Notiz</span>
+        </div>
+        <div class="journal-table-row" onclick="openDetail('nvda')">
+          <span style="font-family:var(--font-head);font-weight:800;color:var(--text-1)">NVDA</span>
+          <span style="color:var(--text-3)">Feb 26</span>
+          <span class="text-num up">+CHF 4'820</span>
+          <span style="color:var(--text-3)">6 Wo.</span>
+          <span class="text-num up">1:3.4</span>
+          <span class="tag tag-buy" style="font-size:9px">Rational</span>
+          <span style="color:var(--text-3)">Plan befolgt, Ziel erreicht</span>
+        </div>
+        <div class="journal-table-row" onclick="openDetail('tsla')">
+          <span style="font-family:var(--font-head);font-weight:800;color:var(--text-1)">TSLA</span>
+          <span style="color:var(--text-3)">Jan 26</span>
+          <span class="text-num dn">−CHF 3'200</span>
+          <span style="color:var(--text-3)">8 Wo.</span>
+          <span class="text-num dn">1:0.4</span>
+          <span class="tag tag-sell" style="font-size:9px">FOMO</span>
+          <span style="color:var(--text-3)">Kauf nach +18% — klassisches FOMO</span>
+        </div>
+        <div class="journal-table-row">
+          <span style="font-family:var(--font-head);font-weight:800;color:var(--text-1)">ZGLD</span>
+          <span style="color:var(--text-3)">Nov 25</span>
+          <span class="text-num up">+CHF 6'100</span>
+          <span style="color:var(--text-3)">4 Wo.</span>
+          <span class="text-num up">1:4.1</span>
+          <span class="tag tag-buy" style="font-size:9px">Rational</span>
+          <span style="color:var(--text-3)">Iran-Geopolitik korrekt antizipiert</span>
+        </div>
+        <div class="journal-table-row">
+          <span style="font-family:var(--font-head);font-weight:800;color:var(--text-1)">MSFT</span>
+          <span style="color:var(--text-3)">Dez 25</span>
+          <span class="text-num dn">−CHF 1'840</span>
+          <span style="color:var(--text-3)">12 Wo.</span>
+          <span class="text-num dn">1:0.6</span>
+          <span class="tag tag-sell" style="font-size:9px">Loss Av.</span>
+          <span style="color:var(--text-3)">Stop-Loss 3 Wochen ignoriert</span>
+        </div>
+        <div class="journal-table-row">
+          <span style="font-family:var(--font-head);font-weight:800;color:var(--text-1)">AAPL</span>
+          <span style="color:var(--text-3)">Okt 25</span>
+          <span class="text-num dn">−CHF 1'100</span>
+          <span style="color:var(--text-3)">1 Std.</span>
+          <span class="text-num dn">1:0.2</span>
+          <span class="tag tag-sell" style="font-size:9px">Rache-Trade</span>
+          <span style="color:var(--text-3)">2h nach TSLA-Verlust geöffnet</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-ai btn-lg" style="width:100%;justify-content:center" onclick="alert('Bias-Analyse läuft…\n\nIn der Prod-App: Claude analysiert alle 34 Trades, identifiziert Muster und erstellt personalisiertes Regelwerk')">
+      Personalisiertes Regelwerk erstellen ↗
+    </button>
+
+  </div>
+</div>
+
+</div><!-- end main-content -->
+
+<!-- ══════════════════════════════════════════════════
+     DETAIL PANEL
+══════════════════════════════════════════════════ -->
+<div class="detail-panel" id="detailPanel">
+  <div class="dp-header">
+    <button class="btn btn-ghost btn-sm" onclick="closeDetail()">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M8 2.5L4 6.5l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Zurück
+    </button>
+    <span class="dp-title" id="dpTitle"></span>
+  </div>
+  <div class="dp-body" id="dpBody"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     TRADE MODAL
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="tradeModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title" id="modalTitle">Neue Order</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeTradeModal()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Titel suchen</label>
+        <input class="form-input" id="tradeSymbol" type="text" placeholder="MSFT, NVDA, NOVN…" value="MSFT"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Order-Typ</label>
+        <div class="order-type-grid">
+          <div class="ot-btn active" onclick="selectOt(this)">Market</div>
+          <div class="ot-btn" onclick="selectOt(this)">Limit</div>
+          <div class="ot-btn" onclick="selectOt(this)">Stop</div>
+          <div class="ot-btn" onclick="selectOt(this)">OCO</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group">
+          <label class="form-label">Betrag (CHF)</label>
+          <input class="form-input" id="tradeAmount" type="number" value="14000" oninput="updateTradeSummary()"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stop-Loss</label>
+          <input class="form-input" id="tradeStop" type="number" value="344" oninput="updateTradeSummary()"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Kursziel</label>
+        <input class="form-input" id="tradeTarget" type="number" value="445" oninput="updateTradeSummary()"/>
+      </div>
+      <div class="trade-summary">
+        <div class="ts-row"><span class="ts-key">Geschätzte Stückzahl</span><span class="ts-val" id="tsShares">37 Aktien</span></div>
+        <div class="ts-row"><span class="ts-key">Risiko (1%-Regel)</span><span class="ts-val">CHF 2'846 max.</span></div>
+        <div class="ts-row"><span class="ts-key">Schweizer Stempelsteuer</span><span class="ts-val" id="tsStamp">CHF 10.50</span></div>
+        <div class="ts-row">
+          <span class="ts-key">Chance-Risiko (CRV)</span>
+          <span class="crv-badge" id="tsCrv">1 : 2.8</span>
+        </div>
+        <div class="ts-row"><span class="ts-key">Score bei Einstieg</span><span class="ts-val text-green">80/100 · Kaufen</span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-buy btn-lg btn-pill" style="flex:2;justify-content:center" onclick="submitOrder()">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Kauforder ausführen
+      </button>
+      <button class="btn btn-ghost btn-lg btn-pill" style="flex:1;justify-content:center" onclick="closeTradeModal()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- end app -->
+
+<script>
+/* ══════════════════════════════════════════════════════
+   DATA
+══════════════════════════════════════════════════════ */
+const COL = c => c >= 4 ? '#14532d' : c >= 2 ? '#15803d' : c >= 0.8 ? '#16a34a' : c >= 0.2 ? '#4ade80' : c > -0.2 ? '#374151' : c > -0.8 ? '#f87171' : c > -2 ? '#dc2626' : c > -4 ? '#991b1b' : '#450a0a';
+
+const SECTORS = [
+  { id:'tech',    n:'Technologie',   c1d:-1.8,  c1w:-3.2,  c1m:-8.1,  cYtd:-12.4, w:28, s:[{t:'MSFT',c:-0.46},{t:'NVDA',c:2.43},{t:'AAPL',c:-1.20},{t:'META',c:0.81},{t:'GOOGL',c:-0.91}] },
+  { id:'health',  n:'Gesundheit',    c1d:0.9,   c1w:1.2,   c1m:3.4,   cYtd:5.1,   w:13, s:[{t:'LLY',c:1.81},{t:'NOVN',c:0.81},{t:'JNJ',c:0.62}] },
+  { id:'finance', n:'Finanzen',      c1d:-0.4,  c1w:-0.8,  c1m:1.2,   cYtd:2.8,   w:13, s:[{t:'JPM',c:-0.51},{t:'V',c:0.32},{t:'BAC',c:-0.92}] },
+  { id:'energy',  n:'Energie',       c1d:2.8,   c1w:4.1,   c1m:9.2,   cYtd:14.3,  w:5,  s:[{t:'XOM',c:3.12},{t:'CVX',c:2.64}] },
+  { id:'consumer',n:'Konsum',        c1d:-1.2,  c1w:-2.4,  c1m:-4.8,  cYtd:-7.2,  w:10, s:[{t:'AMZN',c:-1.82},{t:'TSLA',c:-2.40},{t:'HD',c:-0.61}] },
+  { id:'industry',n:'Industrie',     c1d:-0.3,  c1w:0.6,   c1m:2.1,   cYtd:3.4,   w:9,  s:[{t:'RTX',c:1.42},{t:'LMT',c:1.81},{t:'CAT',c:0.82}] },
+  { id:'comm',    n:'Kommunikation', c1d:-0.6,  c1w:-1.1,  c1m:-2.8,  cYtd:-4.1,  w:8,  s:[{t:'NFLX',c:-0.41},{t:'DIS',c:-0.82}] },
+  { id:'smi',     n:'SMI (CH)',      c1d:0.3,   c1w:0.8,   c1m:1.4,   cYtd:2.1,   w:7,  s:[{t:'NESN',c:0.40},{t:'NOVN',c:0.81},{t:'ROG',c:0.62}] },
+  { id:'mats',    n:'Rohstoffe',     c1d:1.4,   c1w:2.8,   c1m:5.9,   cYtd:8.2,   w:3,  s:[] },
+  { id:'utils',   n:'Versorger',     c1d:0.6,   c1w:1.0,   c1m:2.8,   cYtd:4.2,   w:3,  s:[] },
+  { id:'re',      n:'Immobilien',    c1d:-0.8,  c1w:-1.4,  c1m:-3.1,  cYtd:-5.8,  w:2,  s:[] },
+];
+const REGIONS = [
+  { id:'na',  n:'Nordamerika',   c1d:-0.82, c1w:-1.4, c1m:-3.2, cYtd:-5.1,  w:42, s:[] },
+  { id:'eu',  n:'Europa',        c1d:0.48,  c1w:0.9,  c1m:2.1,  cYtd:3.4,   w:26, s:[] },
+  { id:'ap',  n:'Asien-Pazifik', c1d:-0.34, c1w:-0.8, c1m:-1.9, cYtd:-3.2,  w:24, s:[] },
+  { id:'mea', n:'Naher Osten',   c1d:1.80,  c1w:3.2,  c1m:6.4,  cYtd:9.1,   w:4,  s:[] },
+  { id:'la',  n:'Lateinamerika', c1d:-1.40, c1w:-2.8, c1m:-4.1, cYtd:-6.8,  w:4,  s:[] },
+];
+const COUNTRIES = [
+  { id:'us', n:'USA',        c1d:-0.82, c1w:-1.4, c1m:-3.2, cYtd:-5.1, w:28, s:[] },
+  { id:'cn', n:'China',      c1d:-0.61, c1w:-0.9, c1m:-2.1, cYtd:-4.4, w:14, s:[] },
+  { id:'jp', n:'Japan',      c1d:-0.34, c1w:-0.8, c1m:-1.9, cYtd:-3.2, w:6,  s:[] },
+  { id:'de', n:'Deutschland',c1d:0.54,  c1w:0.9,  c1m:2.1,  cYtd:3.4,  w:5,  s:[] },
+  { id:'in', n:'Indien',     c1d:1.20,  c1w:2.1,  c1m:4.2,  cYtd:6.8,  w:4,  s:[] },
+  { id:'gb', n:'UK',         c1d:0.22,  c1w:0.4,  c1m:0.9,  cYtd:1.8,  w:4,  s:[] },
+  { id:'fr', n:'Frankreich', c1d:0.61,  c1w:1.0,  c1m:2.3,  cYtd:3.8,  w:4,  s:[] },
+  { id:'br', n:'Brasilien',  c1d:-1.80, c1w:-2.8, c1m:-4.1, cYtd:-6.8, w:3,  s:[] },
+  { id:'ca', n:'Kanada',     c1d:0.40,  c1w:0.6,  c1m:1.2,  cYtd:2.1,  w:3,  s:[] },
+  { id:'au', n:'Australien', c1d:0.44,  c1w:0.7,  c1m:1.5,  cYtd:2.8,  w:2,  s:[] },
+  { id:'kr', n:'Südkorea',   c1d:-0.28, c1w:-0.5, c1m:-1.1, cYtd:-2.4, w:2,  s:[] },
+  { id:'ch', n:'Schweiz',    c1d:0.31,  c1w:0.8,  c1m:1.4,  cYtd:2.1,  w:2,  s:[] },
+  { id:'sa', n:'Saudi-Arab.',c1d:2.10,  c1w:3.2,  c1m:6.4,  cYtd:9.1,  w:2,  s:[] },
+  { id:'il', n:'Israel',     c1d:-2.40, c1w:-4.1, c1m:-8.2, cYtd:-12.4,w:1,  s:[] },
+  { id:'it', n:'Italien',    c1d:0.74,  c1w:1.1,  c1m:2.6,  cYtd:4.1,  w:2,  s:[] },
+  { id:'mx', n:'Mexiko',     c1d:-1.10, c1w:-1.8, c1m:-3.4, cYtd:-5.2, w:2,  s:[] },
+];
+const FX = [
+  { id:'eurusd',n:'EUR/USD',   c1d:-0.18,c1w:-0.4,c1m:-0.9,cYtd:-1.8,w:20,s:[] },
+  { id:'usdjpy',n:'USD/JPY',   c1d:0.22, c1w:0.5, c1m:1.1, cYtd:2.4, w:13,s:[] },
+  { id:'gbpusd',n:'GBP/USD',   c1d:-0.12,c1w:-0.3,c1m:-0.6,cYtd:-1.2,w:10,s:[] },
+  { id:'usdchf',n:'USD/CHF',   c1d:-0.19,c1w:-0.4,c1m:-0.8,cYtd:-1.6,w:8, s:[] },
+  { id:'eurchf',n:'EUR/CHF',   c1d:-0.19,c1w:-0.5,c1m:-0.9,cYtd:-1.8,w:7, s:[] },
+  { id:'usdcny',n:'USD/CNY',   c1d:0.08, c1w:0.2, c1m:0.3, cYtd:0.8, w:9, s:[] },
+  { id:'audusd',n:'AUD/USD',   c1d:-0.31,c1w:-0.7,c1m:-1.4,cYtd:-2.8,w:6, s:[] },
+  { id:'xauusd',n:'XAU/USD',   c1d:-0.30,c1w:-1.2,c1m:-3.8,cYtd:12.4,w:6, s:[] },
+  { id:'xagusd',n:'XAG/USD',   c1d:0.80, c1w:-2.1,c1m:-8.4,cYtd:18.2,w:3, s:[] },
+  { id:'usdinr',n:'USD/INR',   c1d:0.12, c1w:0.2, c1m:0.5, cYtd:1.1, w:5, s:[] },
+  { id:'usdbrl',n:'USD/BRL',   c1d:0.82, c1w:1.4, c1m:2.8, cYtd:5.6, w:4, s:[] },
+  { id:'usdcad',n:'USD/CAD',   c1d:0.14, c1w:0.3, c1m:0.6, cYtd:1.2, w:6, s:[] },
+];
+const HM_DATA = { sec: SECTORS, reg: REGIONS, cty: COUNTRIES, fx: FX };
+
+const SIGNALS_DATA = [
+  { sym:'NVDA', name:'NVIDIA Corporation', score:85, verdict:'Kaufen', price:'$879.50', stop:'$798',   target:'$1\'050', crv:'3.1', color:'#1d4738',
+    reasons:['Datacenter-Umsatz +122% YoY','RSI 58 — nicht überkauft','AI-Infrastruktur Megatrend','Broadcom-Partnerschaft stärkt Position'] },
+  { sym:'MSFT', name:'Microsoft Corporation', score:80, verdict:'Kaufen', price:'$371.04', stop:'$344',   target:'$445',   crv:'2.8', color:'#163350',
+    reasons:['Azure +29% YoY — fundamental intakt','−33% vom ATH — Markt übertreibt','P/E 22.3x Mehrjahrestief','CEO Nadella Score 91/100'] },
+  { sym:'NOVN', name:'Novartis AG',            score:75, verdict:'Kaufen', price:'CHF 92', stop:'CHF 86', target:'CHF 104',crv:'1.8', color:'#1e3a1a',
+    reasons:['Defensiv ideal in Korrekturphase','Dividende 3.2% — 15 Jahre Wachstum','Kein FX-Risiko für CHF-Anleger','P/E 14.2x — günstig bewertet'] },
+  { sym:'XOM',  name:'ExxonMobil Corporation', score:78, verdict:'Kaufen', price:'$118.40',stop:'$108',   target:'$136',   crv:'1.7', color:'#2d1f0d',
+    reasons:['Energie-Sektor +33% YTD','Öl $99 durch Iran-Konflikt','FCF-Rendite 8.4%','Aktienrückkäufe aktiv'] },
+];
+
+/* ══════════════════════════════════════════════════════
+   DETAIL PANEL DATA
+══════════════════════════════════════════════════════ */
+const DETAILS = {
+  msft: { t:'Microsoft MSFT', k:[{l:'Kurs',v:'USD 371.04',h:'−0.46% heute'},{l:'Score',v:'80/100',h:'Kaufen'},{l:'CRV',v:'1 : 2.8',h:'Ziel $445'},{l:'Stop-Loss',v:'$344',h:'−7.3%'},{l:'P/E fwd',v:'22.3x',h:'Mehrjahrestief'},{l:'Azure YoY',v:'+29%',h:'Q2 2026'}], s:[{c:'#22c55e',t:'Fundamentals intakt trotz −33% Korrektur — Markt verwechselt SaaS-Disruption mit Microsoft'},{c:'#22c55e',t:'CEO Nadella Score 91/100 — Amtszeit seit 2014, Track Record exzellent'},{c:'#f59e0b',t:'Iran-Makrodruck kurzfristig — gestaffelter Einstieg in 2–3 Tranchen empfohlen'}], buy:true, p:'Erstelle einen vollständigen MSFT Trade-Plan mit Entry, Stop, Positionsgrösse für CHF 284k' },
+  nvda: { t:'NVIDIA NVDA', k:[{l:'Kurs',v:'USD 879.50',h:'▲ +2.43%'},{l:'Score',v:'85/100',h:'Kaufen'},{l:'CRV',v:'1 : 3.1',h:'Sehr attraktiv'},{l:'Datacenter',v:'+122% YoY',h:'AI-Boom'},{l:'P/E fwd',v:'28.4x',h:'AI-Premium'},{l:'Stop-Loss',v:'$798',h:'−9.3%'}], s:[{c:'#22c55e',t:'Stärkste AI-Infrastrukturposition weltweit — strukturelles Wachstum über Jahre'},{c:'#22c55e',t:'Nokia 6G Partnerschaft + Broadcom = neue Umsatzquellen 2026/27'},{c:'#f59e0b',t:'Bewertung erfordert perfekte Execution — Enttäuschungsrisiko bei Guidance beachten'}], buy:true, p:'Analysiere NVDA vollständig und erstelle einen optimalen Kaufplan' },
+  novn: { t:'Novartis NOVN', k:[{l:'Kurs',v:'CHF 92.40',h:'▲ +0.81%'},{l:'Score',v:'75/100',h:'Kaufen'},{l:'Dividende',v:'3.2%',h:'15J Wachstum'},{l:'P/E fwd',v:'14.2x',h:'Günstig'},{l:'Währung',v:'CHF',h:'Kein FX-Risiko'},{l:'Marktphase',v:'Defensiv',h:'Ideal'}], s:[{c:'#22c55e',t:'Defensiver Safe-Haven — ideal in aktueller NFP-Schock und Korrekturphase'},{c:'#22c55e',t:'CHF-Titel: Kein Währungsrisiko — direkter Vorteil für Schweizer Anleger'},{c:'#f59e0b',t:'US-Pharma-Preisregulierung als Risiko — mittelfristig beobachten'}], buy:true, p:'Analysiere Novartis als defensiven Baustein für ein CHF-Portfolio' },
+  tsla: { t:'Tesla TSLA', k:[{l:'Kurs',v:'USD 248.10',h:'▼ −2.40%'},{l:'Score',v:'58/100',h:'Meiden'},{l:'P/E fwd',v:'68x',h:'Massiv teuer'},{l:'YTD',v:'−22.4%',h:'Underperformer'},{l:'Marge',v:'mid-single%',h:'War 25%'},{l:'BYD',v:'Überholt',h:'EU + Asien'}], s:[{c:'#ef4444',t:'Score 58: Hohe Bewertung + sinkende Margen + CEO-Ablenkung = schlechtes CRV'},{c:'#ef4444',t:'BYD überholt in Europa und Asien — Marktanteil strukturell rückläufig'},{c:'#f59e0b',t:'Energiesparte wächst, aber noch zu klein um EV-Schwäche zu kompensieren'}], buy:false, p:'Warum ist Tesla trotz −22% kein gutes Investment? Erkläre die Risiken detailliert' },
+  gold: { t:'Gold XAU/USD', k:[{l:'Kurs',v:'$4\'850',h:'−0.30%'},{l:'ATH Jan 26',v:'$5\'598',h:'Stärkstes Jahr 1979'},{l:'Support',v:'$4\'550',h:'200-Tage-Linie'},{l:'GLD Abfluss',v:'−$2.1 Mrd.',h:'Profit-Taking'},{l:'SLV Zufluss',v:'+$559 Mio.',h:'Rotation'},{l:'Mittelfrist',v:'$5\'800',h:'Ziel'}], s:[{c:'#22c55e',t:'Trendstruktur intakt — über $4\'550 Support bleibt Ausblick bullisch'},{c:'#22c55e',t:'Iran + CHF Safe-Haven + Zentralbankkäufe = strukturelle Unterstützung'},{c:'#f59e0b',t:'Kurzfristige Konsolidierung möglich — gestaffelt nahe $4\'550 einsteigen'}], buy:true, p:'Erstelle Kaufplan für Gold-ETF ZGLD mit optimaler Positionsgrösse für CHF-Portfolio' },
+  sentiment: { t:'Markt-Sentiment', k:[{l:'Fear & Greed',v:'32 — Angst',h:'Hist. Kaufzone'},{l:'VIX',v:'24.5',h:'Erhöht'},{l:'Put/Call',v:'1.28',h:'Bärisch'},{l:'NASDAQ',v:'−11% ATH',h:'Korrektur bestätigt'}], s:[{c:'#22c55e',t:'Fear & Greed unter 35 = in letzten 10 Jahren immer gute Einstiegspunkte für Qualitätsaktien'},{c:'#22c55e',t:'Kontraindikator: Extremangst markiert oft das Ende der Korrektur — Geduld zahlt sich aus'},{c:'#f59e0b',t:'Nicht überstürzen: gestaffelt über 4–6 Wochen einsteigen, nicht alles auf einmal'}], buy:false, p:'Erkläre wie ich Fear & Greed und Sentiment-Indikatoren als Timing-Werkzeug nutze' },
+  zinsen: { t:'Fed & Zinspolitik', k:[{l:'Fed Rate',v:'3.75%',h:'2. Pause'},{l:'10J Rendite',v:'4.15%',h:'Flache Kurve'},{l:'SNB',v:'0.50%',h:'Stabil'},{l:'PCE Inflation',v:'2.7%',h:'Über 2%-Ziel'},{l:'Nächste Senkung',v:'Jul 2026',h:'60% Wahrsch.'},{l:'Stagflation',v:'Risiko',h:'Mittel'}], s:[{c:'#ef4444',t:'Fed-Dilemma: Inflation 2.7% + NFP −92k = weder senken noch erhöhen möglich'},{c:'#f59e0b',t:'Ölpreis $99 heizt Inflation weiter an — Senkungen 2026 zunehmend unwahrscheinlich'},{c:'#22c55e',t:'Historisch: Zinspausen sind oft beste Einstiegszeitpunkte für Qualitätsaktien'}], buy:false, p:'Erkläre Fed-Dilemma und wie Zinspolitik mein CHF-Portfolio konkret beeinflusst' },
+  arbeitsmarkt: { t:'US-Arbeitsmarkt', k:[{l:'NFP Feb',v:'−92\'000',h:'Schock'},{l:'Erwartet',v:'+60\'000',h:'Grosse Enttäuschung'},{l:'Arbeitslosigkeit',v:'4.4%',h:'Steigend'},{l:'Lohnwachstum',v:'3.6%',h:'Normalisiert'},{l:'Erstanträge',v:'199\'000',h:'Stabil'},{l:'Rezessionsrisiko',v:'Mittel',h:'Fed beobachtet'}], s:[{c:'#ef4444',t:'Stärkster Jobverlust seit 2020 — Rezessionsrisiko deutlich gestiegen'},{c:'#ef4444',t:'Zyklische Werte meiden: Retail, Automotive, Transport unter Druck'},{c:'#22c55e',t:'Defensiv aufstocken: NOVN, Versorger, Basiskonsumgüter schützen in Rezession'}], buy:false, p:'Welche meiner Positionen sind am stärksten vom schwachen US-Arbeitsmarkt betroffen?' },
+  geopolitik: { t:'Geopolitik-Radar', k:[{l:'Iran-Konflikt',v:'Woche 4',h:'Hormuz-Blockade'},{l:'Öl WTI',v:'$99.40',h:'+40% seit Start'},{l:'US-China',v:'Mittel',h:'Halbleiter-Kontrollen'},{l:'SECO CH',v:'Tief',h:'Kein Alarm'},{l:'Rüstung NATO',v:'↑ Stufe 2',h:'Profiteure'},{l:'Ceasefire',v:'Außer Reichweite',h:'Israel: kein Kompromiss'}], s:[{c:'#22c55e',t:'Energie-Profiteure massiv: XOM, CVX, Shell, TotalEnergies — Margen explodieren'},{c:'#22c55e',t:'Waffenstillstand-Signal würde sofortige Tech-Rallye +5–10% über Nacht auslösen'},{c:'#f59e0b',t:'Halbleiter-Risiko: US-Exportkontrollen betreffen NVDA, ASML — Exposure prüfen'}], buy:false, p:'Analysiere Geopolitik-Risiken für mein Portfolio und schlage Absicherungsstrategien vor' },
+  inflation: { t:'Inflation & Konjunktur', k:[{l:'CPI USA',v:'2.4%',h:'Kern: 2.5%'},{l:'PCE Prognose',v:'2.7%',h:'Über 2%-Ziel'},{l:'Öl WTI',v:'$99.40',h:'Inflationstreiber'},{l:'Fear & Greed',v:'32',h:'Angst-Zone'},{l:'VIX',v:'24.5',h:'Erhöht'},{l:'EUR/CHF',v:'0.937',h:'Safe-Haven'}], s:[{c:'#ef4444',t:'Öl $99 heizt Inflation an — Fed kann nicht senken obwohl Arbeitsmarkt schwächelt'},{c:'#22c55e',t:'Fear & Greed 32 = historisch starkes Kaufsignal — Markt übertreibt die Angst'},{c:'#f59e0b',t:'EUR/CHF nahe SNB-Interventionszone — beobachten, FX-Exposure prüfen'}], buy:false, p:'Erkläre den Zusammenhang zwischen Inflation, Zinsen und Aktienbewertungen aktuell' },
+  oel: { t:'Öl WTI & Energiesektor', k:[{l:'WTI Öl',v:'$99.40',h:'+1.21% heute'},{l:'Brent Öl',v:'$102.80',h:'Iran-Premium'},{l:'Energie YTD',v:'+33%',h:'Bester Sektor'},{l:'Iran-Konflikt',v:'Woche 4',h:'Hormuz'},{l:'Inflations-Impact',v:'Hoch',h:'PCE steigt'},{l:'Stagflation',v:'Risiko Mittel',h:'Fed-Dilemma'}], s:[{c:'#22c55e',t:'Energie-Aktien: XOM, CVX, COP, Shell, TotalEnergies — strukturell stark'},{c:'#ef4444',t:'Airlines, Chemie, Transport leiden massiv — Marginendruck erheblich'},{c:'#f59e0b',t:'Ceasefire-Risiko: Bei Waffenstillstand sofortiger Öl-Rückgang auf $70–75 möglich'}], buy:false, p:'Welche Energie-Aktien eignen sich für mein CHF-Portfolio bei Öl $99?' },
+  eurchf: { t:'EUR/CHF & Währungen', k:[{l:'EUR/CHF',v:'0.9372',h:'Safe-Haven'},{l:'USD/CHF',v:'0.889',h:'CHF stark'},{l:'SNB Rate',v:'0.50%',h:'Stabil'},{l:'FX-Gegenwind',v:'−11% YoY',h:'Auf USD-Pos.'},{l:'SNB-Zone',v:'~0.920',h:'Interventionszone'},{l:'Ceasefire',v:'Trigger',h:'CHF würde fallen'}], s:[{c:'#22c55e',t:'CHF-Stärke schützt Kaufkraft — Schweizer verlieren in Krisen weniger als andere'},{c:'#f59e0b',t:'US-Positionen verlieren 11% FX: NVDA, MSFT noch schlechter in CHF gerechnet'},{c:'#f59e0b',t:'Exporteure leiden: Nestlé, Roche, ABB kämpfen mit CHF-Stärke 2026'}], buy:false, p:'Wie hedgt man USD-Positionen für einen Schweizer Anleger und was kostet das?' },
+  vix: { t:'VIX — Volatilitätsindex', k:[{l:'VIX aktuell',v:'24.5',h:'Erhöht'},{l:'VIX-Alarm',v:'>30',h:'Noch nicht erreicht'},{l:'Beste Kaufpunkte',v:'VIX >40',h:'Historisch'},{l:'Put/Call Ratio',v:'1.28',h:'Bärisch'},{l:'Marktphase',v:'5 Monate',h:'Seit Okt 2025'},{l:'Typ. Dauer',v:'3–6 Monate',h:'Korrekturen'}], s:[{c:'#f59e0b',t:'VIX 24.5: Positionsgrössen um 20% reduzieren — erhöhte Unsicherheit'},{c:'#22c55e',t:'Historisch: VIX-Spikes über 30 markierten immer die besten Einstiegspunkte'},{c:'#22c55e',t:'Tail-Risk-Hedging günstig: Put-Optionen auf S&P 500 aktuell attraktiv bepreist'}], buy:false, p:'Erkläre wie ich VIX als Timing-Werkzeug für mein Trading nutze' },
+  snb: { t:'SNB & CHF-Politik', k:[{l:'SNB Rate',v:'0.50%',h:'Stabil'},{l:'EUR/CHF',v:'0.937',h:'Safe-Haven aktiv'},{l:'USD/CHF',v:'0.889',h:'CHF stark'},{l:'Interventionszone',v:'~0.920',h:'SNB beobachtet'}], s:[{c:'#22c55e',t:'CHF Safe-Haven: In Krisen steigt CHF automatisch — natürlicher Portfolioschutz'},{c:'#f59e0b',t:'Exporteure leiden: Nestlé, Roche, ABB kämpfen mit CHF-Stärke 2026'},{c:'#f59e0b',t:'USD/CHF 0.889: US-Titel verlieren 11% FX-Gegenwind in CHF gerechnet'}], buy:false, p:'Erkläre SNB-Politik und CHF-Auswirkungen auf mein CHF-Portfolio konkret' },
+  ezb: { t:'EZB — Europäische Zentralbank', k:[{l:'Leitzins',v:'2.40%',h:'Jun mögl.'},{l:'Inflation EU',v:'1.8%',h:'Unter Ziel'},{l:'EUR/USD',v:'1.0812',h:'Schwach'},{l:'Stoxx 600',v:'+0.48%',h:'Heute'}], s:[{c:'#22c55e',t:'EZB unter 2%-Ziel — mehr Spielraum für Senkungen als Fed'},{c:'#22c55e',t:'EU-Aktien P/E 13.2x vs. US 19.8x — erheblicher Value-Vorteil'},{c:'#f59e0b',t:'EUR-Schwäche belastet EU-Positionen in CHF gerechnet'}], buy:false, p:'Welche europäischen Aktien bieten das beste CRV für CHF-Anleger?' },
+  boj: { t:'BoJ — Bank of Japan', k:[{l:'Leitzins',v:'0.50%',h:'Normalisierung'},{l:'USD/JPY',v:'149.82',h:'JPY schwach'},{l:'Nikkei',v:'38\'420',h:'−3.2% YTD'},{l:'Inflation JP',v:'2.8%',h:'Über Ziel'}], s:[{c:'#f59e0b',t:'BoJ-Normalisierung historisch einmalig — erste Zinserhöhungen seit 20 Jahren'},{c:'#f59e0b',t:'Yen-Stärke-Risiko: Bei JPY-Aufwertung verlieren Nikkei-Positionen in CHF'},{c:'#22c55e',t:'Japan-Reformstory: Corporate Governance verbessert, Buybacks steigen strukturell'}], buy:false, p:'Lohnt sich ein Japan-Investment für mein CHF-Portfolio?' },
+  sp500: { t:'S&P 500', k:[{l:'Kurs',v:'5\'218',h:'−0.82% heute'},{l:'YTD',v:'−5.1%',h:'Schwach'},{l:'52W Hoch',v:'6\'012',h:'−13.2%'},{l:'P/E fwd',v:'19.8x',h:'Normal'}], s:[{c:'#f59e0b',t:'Magnificent Seven −12% YTD belastet Index überproportional'},{c:'#22c55e',t:'Impressive 493 (ohne Mag 7) +2.9% — breite Marktgesundheit intakt'},{c:'#22c55e',t:'Historisch: Nach −10% YTD in H1 folgen Ø +18% in H2'}], buy:false, p:'Analysiere S&P 500 Lage und wo im Marktzyklus wir uns befinden' },
+  nasdaq: { t:'NASDAQ 100', k:[{l:'Kurs',v:'23\'898',h:'−1.14% heute'},{l:'YTD',v:'−8.4%',h:'Underperformance'},{l:'200-Tage-Linie',v:'Gebrochen',h:'20. März'},{l:'Mag 7 Ø',v:'−12%',h:'Alle negativ'}], s:[{c:'#ef4444',t:'200-Tage-Linie gebrochen am 20. März — klassisches bärisches Signal'},{c:'#f59e0b',t:'Nächste Unterstützung: 22\'985 Punkte — noch 4% Abwärtspotenzial möglich'},{c:'#22c55e',t:'Bewertungen auf 3-Jahres-Tief — fundamental günstigste Einstiegschance seit 2023'}], buy:false, p:'Analysiere NASDAQ 100 Chartbild und nächste Kursszenarien' },
+  smi: { t:'SMI — Schweizer Markt', k:[{l:'Kurs',v:'12\'480',h:'▲ +0.31%'},{l:'YTD',v:'+2.1%',h:'Outperformance'},{l:'P/E fwd',v:'16.4x',h:'Fair bewertet'},{l:'vs. S&P',v:'+7.2%',h:'Outperformance'}], s:[{c:'#22c55e',t:'SMI outperformt US-Märkte YTD — defensiver Charakter zahlt sich aus'},{c:'#22c55e',t:'Kein FX-Risiko für CHF-Anleger — direkter Vorteil gegenüber US-Titeln'},{c:'#f59e0b',t:'Exporteure leiden unter CHF-Stärke: Nestlé, Roche, ABB kämpfen mit FX'}], buy:false, p:'Welche SMI-Titel eignen sich als defensive Basis für ein CHF-Portfolio?' },
+  dax: { t:'DAX — Deutscher Markt', k:[{l:'Kurs',v:'22\'150',h:'▲ +0.54%'},{l:'YTD',v:'+3.4%',h:'Leader Europa'},{l:'P/E fwd',v:'12.8x',h:'Sehr günstig'},{l:'vs. S&P 500',v:'−7x P/E',h:'Discount'}], s:[{c:'#22c55e',t:'DAX P/E 12.8x vs. S&P 500 19.8x — erheblicher Value-Vorteil'},{c:'#22c55e',t:'Rüstungs-Profiteur: Rheinmetall, KNDS — NATO-Ausgaben strukturell steigend'},{c:'#f59e0b',t:'EUR-Schwäche belastet DAX-Gewinne in CHF-Rechnung um ca. 3%'}], buy:false, p:'Welche DAX-Titel sind aktuell am attraktivsten für einen CHF-Anleger?' },
+  marktphase: { t:'Marktphase & Zyklen', k:[{l:'Phase',v:'Korrektur',h:'5 Monate'},{l:'Tech YTD',v:'−12.4%',h:'Underperformer'},{l:'Energie YTD',v:'+33%',h:'Bester Sektor'},{l:'Nächste Phase',v:'Erholung?',h:'Bei Zinssenkung'}], s:[{c:'#f59e0b',t:'Markt verwechselt SaaS-Disruption mit Microsoft/Google-Disruption — fundamentaler Fehler'},{c:'#22c55e',t:'Historisch: Nach −30% Korrekturen bei Qualitätstiteln folgt Ø +50% in 12–18 Monaten'},{c:'#22c55e',t:'Sektorrotation: Value und Dividenden outperformen in Korrekturphase'}], buy:false, p:'Erkläre die aktuelle Marktphase und historische Parallelen' },
+  alerts: { t:'Aktuelle Alerts', k:[{l:'Kritisch',v:'2',h:'Sofort-Aktion'},{l:'Warnung',v:'1',h:'Beobachten'},{l:'Info',v:'1',h:'Kaufsignal'},{l:'Total ungelesen',v:'3',h:''}], s:[{c:'#ef4444',t:'Iran-Konflikt Woche 4 — Öl $99.40 — Energiesektor profitiert, Tech und Konsum leiden'},{c:'#ef4444',t:'NFP −92k — Schockzahlen — Rezessionsrisiko steigt deutlich'},{c:'#f59e0b',t:'Fed hält Zinsen 3.75% — Nächste Senkung Juli 2026 mit 60% Wahrscheinlichkeit eingepreist'},{c:'#22c55e',t:'MSFT Score 80/100 — Kaufsignal — CRV 1:2.8 — Stop $344 — Ziel $445'}], buy:false, p:'Analysiere alle aktuellen Alerts und ihre Auswirkungen auf mein CHF-Portfolio' },
+  'portfolio-overview': { t:'Portfolio-Übersicht', k:[{l:'Gesamtwert',v:'CHF 284\'620',h:'▲ +1\'240 heute'},{l:'YTD',v:'−3.2%',h:'vs. SMI +2.1%'},{l:'Score',v:'74/100',h:'Solide'},{l:'Cash',v:'39.7%',h:'CHF 113\'080'}], s:[{c:'#22c55e',t:'40% Cash bietet optimale Flexibilität für Einstiegsmöglichkeiten bei aktueller Korrektur'},{c:'#f59e0b',t:'YTD-Underperformance vs. SMI — defensivere CH-Allokation erwägen'},{c:'#22c55e',t:'NVDA +12.1% und ZGLD +18.4% sind die Renditequellen — Plan befolgt'}], buy:true, p:'Erstelle vollständigen Portfolio-Optimierungsplan basierend auf aktueller Marktlage' },
+};
+
+/* ══════════════════════════════════════════════════════
+   APP STATE
+══════════════════════════════════════════════════════ */
+let curPage = 'home';
+let hmView = 'sec';
+let hmTime = '1d';
+let isDark = true;
+
+/* ══════════════════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════════════════ */
+function setPage(id, tabEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id)?.classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  if (tabEl) tabEl.classList.add('active');
+  closeDetail();
+  curPage = id;
+  if (id === 'heatmap') buildFullMap();
+  if (id === 'signals') buildSignals();
+  if (id === 'portfolio') buildPortfolioCharts();
+  if (id === 'journal') buildJournalChart();
+}
+
+/* ══════════════════════════════════════════════════════
+   HEATMAP
+══════════════════════════════════════════════════════ */
+function getChange(item) {
+  if (hmTime === '1d')  return item.c1d;
+  if (hmTime === '1w')  return item.c1w;
+  if (hmTime === '1m')  return item.c1m;
+  return item.cYtd;
+}
+
+function buildMap(data, containerId, mini = false, rowSz = 5) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  const rows = [];
+  const sz = mini ? 4 : rowSz;
+  for (let i = 0; i < data.length; i += sz) rows.push(data.slice(i, i + sz));
+  const wrap = document.createElement('div');
+  wrap.className = 'tm-wrap';
+  rows.forEach(row => {
+    const rd = document.createElement('div');
+    rd.className = 'tm-row';
+    row.forEach(item => {
+      const chg = getChange(item);
+      const bg  = COL(chg);
+      const fl  = item.w;
+      const minH = mini ? 44 : item.w >= 20 ? 130 : item.w >= 10 ? 100 : 72;
+      const b   = document.createElement('div');
+      b.className = 'tm-block';
+      b.style.cssText = `background:${bg};flex:${fl};min-height:${minH}px`;
+      let html = `<div><div class="tm-name">${item.n}</div><div class="tm-chg">${chg>0?'+':''}${chg.toFixed(2)}%</div></div>`;
+      if (!mini && item.s && item.s.length && item.w >= 7) {
+        html += '<div class="tm-stocks">';
+        item.s.forEach(st => {
+          html += `<div class="tm-stock" style="background:${COL(st.c)}" onclick="event.stopPropagation();openDetail('${st.t.toLowerCase()}')"><div class="tm-st-sym">${st.t}</div><div class="tm-st-chg">${st.c>0?'+':''}${st.c.toFixed(1)}%</div></div>`;
+        });
+        html += '</div>';
+      }
+      b.innerHTML = html;
+      b.addEventListener('click', e => { if (!e.target.closest('.tm-stock')) openDetail(item.id); });
+      rd.appendChild(b);
+    });
+    wrap.appendChild(rd);
+  });
+  el.appendChild(wrap);
+}
+
+function buildFullMap() {
+  buildMap(HM_DATA[hmView], 'full-heatmap', false, hmView === 'sec' ? 5 : 5);
+}
+function setHv(v, btn) {
+  hmView = v;
+  document.querySelectorAll('[id^="hv-"]').forEach(b => { b.className = 'btn btn-ghost btn-xs btn-pill'; });
+  btn.className = 'btn btn-primary btn-xs btn-pill';
+  buildFullMap();
+}
+function setHt(v, btn) {
+  hmTime = v;
+  document.querySelectorAll('[id^="ht-"]').forEach(b => { b.className = 'btn btn-ghost btn-xs btn-pill'; });
+  btn.className = 'btn btn-primary btn-xs btn-pill';
+  buildFullMap();
+  buildMap(SECTORS, 'mini-treemap', true);
+}
+
+/* ══════════════════════════════════════════════════════
+   SIGNALS
+══════════════════════════════════════════════════════ */
+function buildSignals() {
+  const el = document.getElementById('signals-list');
+  if (!el) return;
+  el.innerHTML = '';
+  SIGNALS_DATA.forEach(s => {
+    const pct = s.score;
+    const scoreColor = pct >= 75 ? 'var(--green)' : pct >= 55 ? 'var(--amber)' : 'var(--red)';
+    el.innerHTML += `
+      <div class="signal-full-card" onclick="openDetail('${s.sym.toLowerCase()}')">
+        <div class="sfc-top">
+          <div class="sfc-left">
+            <div class="sfc-icon" style="background:${s.color}">
+              ${s.sym.substring(0,2)}
+            </div>
+            <div>
+              <div class="sfc-ticker">${s.sym}</div>
+              <div class="sfc-name">${s.name}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="tag tag-buy">${s.verdict}</span>
+            <button class="btn btn-buy btn-md btn-pill" onclick="event.stopPropagation();openTradeModal('${s.sym}')">Kaufen</button>
+          </div>
+        </div>
+        <div class="sfc-metrics">
+          <div class="sfc-metric"><div class="sfc-ml">Kurs</div><div class="sfc-mv">${s.price}</div></div>
+          <div class="sfc-metric"><div class="sfc-ml">Stop-Loss</div><div class="sfc-mv" style="color:var(--red)">${s.stop}</div></div>
+          <div class="sfc-metric"><div class="sfc-ml">Kursziel</div><div class="sfc-mv" style="color:var(--green)">${s.target}</div></div>
+          <div class="sfc-metric"><div class="sfc-ml">CRV</div><div class="sfc-mv"><span class="crv-badge">1 : ${s.crv}</span></div></div>
+        </div>
+        <div class="score-row">
+          <span class="sfc-ml" style="width:60px;flex-shrink:0">Score</span>
+          <div class="score-bar-outer"><div class="score-bar-inner" style="width:${pct}%;background:${scoreColor}"></div></div>
+          <span style="font-family:var(--font-num);font-size:13px;font-weight:500;color:${scoreColor};width:50px;text-align:right">${pct}/100</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${s.reasons.map(r => `<span style="font-size:10px;color:var(--text-3);background:var(--bg-elevated);padding:3px 8px;border-radius:var(--r-full);border:1px solid var(--border-std)">${r}</span>`).join('')}
+        </div>
+      </div>`;
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   DETAIL PANEL
+══════════════════════════════════════════════════════ */
+function openDetail(id) {
+  const d = DETAILS[id];
+  if (!d) { alert(`KI-Analyse für "${id}" wird in der Prod-App gestartet.\n\nClaude analysiert: aktuelle Lage, Chancen, Risiken, Handlungsempfehlung für CHF-Anleger.`); return; }
+  document.getElementById('dpTitle').textContent = d.t;
+  let html = '<div class="dp-kpi-grid">';
+  d.k.forEach(k => { html += `<div class="dp-kpi"><div class="dp-kl">${k.l}</div><div class="dp-kv">${k.v}</div><div class="dp-kh">${k.h}</div></div>`; });
+  html += '</div><div class="dp-sigs">';
+  d.s.forEach(s => { html += `<div class="dp-sig"><div class="dp-sig-dot" style="background:${s.c}"></div><span>${s.t}</span></div>`; });
+  html += '</div><div class="dp-actions">';
+  if (d.buy) html += `<button class="btn btn-buy btn-md btn-pill" style="flex:1;justify-content:center" onclick="openTradeModal('${d.t.split(' ')[0]}')"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v9M1.5 6h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Order</button>`;
+  html += `<button class="btn btn-ghost btn-md" style="flex:1;justify-content:center">Watchlist</button>`;
+  html += `<button class="btn btn-ai btn-md" style="flex:1;justify-content:center" onclick="alert('KI-Analyse:\\n\\n${d.p}\\n\\nIn der Prod-App: Claude API liefert vollständige Analyse in Echtzeit.')">KI ↗</button>`;
+  html += '</div>';
+  document.getElementById('dpBody').innerHTML = html;
+  document.getElementById('detailPanel').classList.add('open');
+}
+function closeDetail() {
+  document.getElementById('detailPanel').classList.remove('open');
+}
+
+/* ══════════════════════════════════════════════════════
+   TRADE MODAL
+══════════════════════════════════════════════════════ */
+function openTradeModal(sym = 'MSFT') {
+  document.getElementById('tradeSymbol').value = sym;
+  document.getElementById('modalTitle').textContent = `${sym} — Neue Order`;
+  updateTradeSummary();
+  document.getElementById('tradeModal').classList.add('open');
+}
+function closeTradeModal() {
+  document.getElementById('tradeModal').classList.remove('open');
+}
+function selectOt(btn) {
+  document.querySelectorAll('.ot-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function updateTradeSummary() {
+  const amount = parseFloat(document.getElementById('tradeAmount').value) || 14000;
+  const stop   = parseFloat(document.getElementById('tradeStop').value)   || 344;
+  const target = parseFloat(document.getElementById('tradeTarget').value) || 445;
+  const price  = 371.04;
+  const shares = Math.floor(amount / price);
+  const riskPs = Math.abs(price - stop);
+  const rewPs  = Math.abs(target - price);
+  const crv    = riskPs > 0 ? (rewPs / riskPs).toFixed(1) : '—';
+  const stamp  = (amount * 0.00075).toFixed(2);
+  document.getElementById('tsShares').textContent = `${shares} Aktien`;
+  document.getElementById('tsStamp').textContent  = `CHF ${stamp}`;
+  document.getElementById('tsCrv').textContent    = `1 : ${crv}`;
+}
+function submitOrder() {
+  const sym = document.getElementById('tradeSymbol').value;
+  const amt = document.getElementById('tradeAmount').value;
+  alert(`Order platziert!\n\n${sym} — CHF ${parseInt(amt).toLocaleString('de-CH')}\nStop-Loss: $${document.getElementById('tradeStop').value}\nKursziel: $${document.getElementById('tradeTarget').value}\n\nIn der Prod-App: Direkt via IBKR TWS API ausgeführt.`);
+  closeTradeModal();
+}
+
+/* ══════════════════════════════════════════════════════
+   CHARTS
+══════════════════════════════════════════════════════ */
+function buildPortfolioCharts() {
+  setTimeout(() => {
+    const pc = document.getElementById('portChart');
+    if (pc && !pc._chartjs) {
+      new Chart(pc, {
+        type: 'line',
+        data: {
+          labels: ['Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez','Jan','Feb','Mär'],
+          datasets: [
+            { label:'Portfolio', data:[248000,254000,268000,291000,274000,280000,264000,296000,278000,286000,292000,284620], borderColor:'#3d8ef8', borderWidth:2, pointRadius:0, tension:.3, fill:true, backgroundColor:'rgba(61,142,248,0.06)' },
+            { label:'SMI', data:[260000,262000,270000,278000,275000,279000,282000,289000,286000,284000,286000,285000], borderColor:'rgba(255,255,255,0.2)', borderWidth:1.5, pointRadius:0, tension:.3, fill:false, borderDash:[4,3] },
+          ]
+        },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }}, scales:{ x:{ grid:{ display:false }, ticks:{ color:'#4e5a6e', font:{size:10} }}, y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#4e5a6e', font:{size:10}, callback:v=>'CHF '+Math.round(v/1000)+'k' }}}}
+      });
+    }
+    const ac = document.getElementById('allocChart');
+    if (ac && !ac._chartjs) {
+      new Chart(ac, {
+        type: 'doughnut',
+        data: {
+          labels:['NVDA','MSFT','NOVN','ZGLD','Cash'],
+          datasets:[{ data:[52100,48240,38800,32400,113080], backgroundColor:['#16a34a','#3d8ef8','#22d3ee','#f59e0b','#374151'], borderWidth:0, hoverOffset:4 }]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, cutout:'68%', plugins:{ legend:{ display:true, position:'right', labels:{ color:'#8b95a8', font:{size:10}, boxWidth:10 }}}}
+      });
+    }
+  }, 100);
+}
+
+function buildJournalChart() {
+  setTimeout(() => {
+    const el = document.getElementById('journalChart');
+    if (el && !el._chartjs) {
+      new Chart(el, {
+        type: 'bar',
+        data: {
+          labels:['Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez','Jan','Feb','Mär'],
+          datasets:[
+            { label:'Effektiv', data:[-1200,800,2100,6800,-2800,1400,-2600,7200,-1400,3100,5100,-900], backgroundColor:d=>d.raw>=0?'rgba(34,197,94,0.6)':'rgba(239,68,68,0.6)', borderRadius:3 },
+            { label:'Ohne Biases', data:[400,1200,2100,6800,-400,1400,480,7200,480,3100,5100,480], type:'line', borderColor:'rgba(255,255,255,0.25)', borderWidth:1.5, borderDash:[4,3], pointRadius:0, tension:.3, fill:false }
+          ]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }}, scales:{ x:{ grid:{ display:false }, ticks:{ color:'#4e5a6e', font:{size:10} }}, y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#4e5a6e', font:{size:10}, callback:v=>(v>=0?'+':'')+Math.round(v/1000)+'k' }}}}
+      });
+    }
+  }, 100);
+}
+
+/* ══════════════════════════════════════════════════════
+   THEME TOGGLE
+══════════════════════════════════════════════════════ */
+function toggleTheme() {
+  isDark = !isDark;
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  if (!isDark) {
+    document.documentElement.style.setProperty('--bg-base', '#f0f2f5');
+    document.documentElement.style.setProperty('--bg-surface', '#ffffff');
+    document.documentElement.style.setProperty('--bg-elevated', '#f8f9fb');
+    document.documentElement.style.setProperty('--bg-hover', '#f1f3f7');
+    document.documentElement.style.setProperty('--text-1', '#0d1117');
+    document.documentElement.style.setProperty('--text-2', '#4e5a6e');
+    document.documentElement.style.setProperty('--text-3', '#8b95a8');
+    document.documentElement.style.setProperty('--border-dim', 'rgba(0,0,0,0.07)');
+    document.documentElement.style.setProperty('--border-std', 'rgba(0,0,0,0.11)');
+    document.documentElement.style.setProperty('--border-bold', 'rgba(0,0,0,0.20)');
+  } else {
+    ['--bg-base','--bg-surface','--bg-elevated','--bg-hover','--text-1','--text-2','--text-3','--border-dim','--border-std','--border-bold']
+      .forEach(p => document.documentElement.style.removeProperty(p));
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  buildMap(SECTORS, 'mini-treemap', true);
+  buildFullMap();
+  buildSignals();
+});
+</script>
+</body>
+</html>

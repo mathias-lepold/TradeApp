@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap');
+
+/* ── Design Tokens ────────────────────────────────── */
+:root {
+  --bg-base:      #080c12;
+  --bg-surface:   #0e1420;
+  --bg-elevated:  #141c2a;
+  --bg-hover:     #1a2438;
+
+  --border-dim:   rgba(255,255,255,0.05);
+  --border-std:   rgba(255,255,255,0.09);
+  --border-bold:  rgba(255,255,255,0.16);
+
+  --text-1: #e8edf5;
+  --text-2: #8b95a8;
+  --text-3: #4e5a6e;
+
+  --accent:      #3d8ef8;
+  --accent-dim:  rgba(61,142,248,0.12);
+  --accent-glow: rgba(61,142,248,0.25);
+
+  --green:     #22c55e;
+  --green-dim: rgba(34,197,94,0.10);
+  --red:       #ef4444;
+  --red-dim:   rgba(239,68,68,0.10);
+  --amber:     #f59e0b;
+  --amber-dim: rgba(245,158,11,0.10);
+
+  --font-head: 'Syne', sans-serif;
+  --font-body: 'Outfit', sans-serif;
+  --font-num:  'IBM Plex Mono', monospace;
+
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px; --r-full: 999px;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
+  --trans: 140ms ease;
+}
+
+/* Light Mode */
+[data-theme="light"] {
+  --bg-base:     #f0f2f5;
+  --bg-surface:  #ffffff;
+  --bg-elevated: #f8f9fb;
+  --bg-hover:    #f1f3f7;
+  --border-dim:  rgba(0,0,0,0.06);
+  --border-std:  rgba(0,0,0,0.10);
+  --border-bold: rgba(0,0,0,0.18);
+  --text-1: #0d1117;
+  --text-2: #4e5a6e;
+  --text-3: #8b95a8;
+}
+
+/* ── Reset ────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; -webkit-font-smoothing: antialiased; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg-base);
+  color: var(--text-1);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-bold); border-radius: 2px; }
+
+/* ── Animations ───────────────────────────────────── */
+@keyframes fadeUp  { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+@keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+@keyframes pulse   { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(.75)} }
+
+.anim-fade  { animation: fadeUp 240ms ease forwards; }
+.anim-slide { animation: slideIn 220ms ease forwards; }
+.pulse-anim { animation: pulse 1.6s infinite; }
+
+.stagger > * { opacity: 0; animation: fadeUp 220ms ease forwards; }
+.stagger > *:nth-child(1) { animation-delay: 30ms }
+.stagger > *:nth-child(2) { animation-delay: 70ms }
+.stagger > *:nth-child(3) { animation-delay: 110ms }
+.stagger > *:nth-child(4) { animation-delay: 150ms }
+.stagger > *:nth-child(5) { animation-delay: 190ms }
+.stagger > *:nth-child(6) { animation-delay: 230ms }
+.stagger > *:nth-child(7) { animation-delay: 270ms }
+.stagger > *:nth-child(8) { animation-delay: 310ms }
+
+/* ── Typography ───────────────────────────────────── */
+.font-head { font-family: var(--font-head); }
+.font-num  { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.label-caps {
+  font-family: var(--font-head);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ── Colors ───────────────────────────────────────── */
+.up    { color: var(--green) !important; }
+.dn    { color: var(--red) !important; }
+.neu   { color: var(--text-3) !important; }
+.warn  { color: var(--amber) !important; }
+.text-accent { color: var(--accent); }
