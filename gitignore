@@ -1,0 +1,87 @@
+# ── Umgebungsvariablen / Secrets ─────────────────────
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+.env.test
+.env*.local
+frontend/.env
+frontend/.env.local
+frontend/.env.development
+frontend/.env.production
+backend/.env
+backend/.env.local
+
+# ── Node.js / Frontend ────────────────────────────────
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+frontend/dist/
+build/
+.vite/
+
+# ── Python / Backend ──────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+backend/venv/
+venv/
+env/
+.venv/
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Datenbank ─────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+postgres_data/
+redis_data/
+influxdb_data/
+
+# ── IDE / Editor ──────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Logs ──────────────────────────────────────────────
+logs/
+*.log
+*.log.*
+
+# ── Docker ────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── Zertifikate / Keys ────────────────────────────────
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+
+# ── Temporäre Dateien ─────────────────────────────────
+*.tmp
+*.temp
+.cache/
+.parcel-cache/
+coverage/
+.nyc_output/
