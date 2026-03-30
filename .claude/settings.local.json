@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs ls:*)",
+      "Bash(find /c/Users/Mathias Lepold/Source/TradeApp -type d -not -path */node_modules/* -not -path */__pycache__/* -not -path */.git/*)",
+      "Bash(./venv/Scripts/python -c \":*)",
+      "Bash(./venv/Scripts/python -m pytest tests/test_technical.py tests/test_regime_detector.py tests/test_risk_manager.py tests/test_bias_detector.py tests/test_decision_engine.py -v --tb=short)",
+      "Bash(./venv/Scripts/pip install:*)",
+      "Bash(./venv/Scripts/python -m pytest tests/ -v --tb=short --ignore=tests/test_mock_feed.py)",
+      "Bash(./venv/Scripts/python -m pytest tests/test_mock_feed.py -v --tb=short)",
+      "Bash(./venv/Scripts/python -m pytest tests/ -v --tb=short)",
+      "Bash(npm run:*)",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(data[0][''''text'''']\\)\")",
+      "Bash(python3 -c \":*)",
+      "Bash(python -c \":*)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(npx tsc:*)",
+      "Bash(./venv/Scripts/python -c \"import yfinance; print\\(''yfinance'', yfinance.__version__\\)\")",
+      "Bash(./venv/Scripts/uvicorn app.main:app --reload --port 8000)",
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "Bash(./venv/Scripts/alembic upgrade:*)"
+    ]
+  }
+}

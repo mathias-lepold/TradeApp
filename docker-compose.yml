@@ -26,7 +26,7 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=postgresql+asyncpg://tradeapp:secret@postgres:5432/tradeapp
+      - DATABASE_URL=postgresql+asyncpg://trader:tradepass@postgres:5432/tradeapp
       - REDIS_URL=redis://redis:6379/0
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - IBKR_HOST=host.docker.internal
@@ -45,13 +45,12 @@ services:
       - "5432:5432"
     environment:
       POSTGRES_DB: tradeapp
-      POSTGRES_USER: tradeapp
-      POSTGRES_PASSWORD: secret
+      POSTGRES_USER: trader
+      POSTGRES_PASSWORD: tradepass
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tradeapp"]
+      test: ["CMD-SHELL", "pg_isready -U trader -d tradeapp"]
       interval: 5s
       timeout: 5s
       retries: 5
