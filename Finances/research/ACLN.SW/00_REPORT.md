@@ -1,4 +1,4 @@
-# 📋 Gesamt-Report: Accelleron Industries (ACLN)
+# 📋 Gesamt-Report: Accelleron Industries (ACLN.SW)
 
 > **Analysedatum:** 2026-05-31 · **Aktueller Kurs:** CHF 77.75 (29.05.2026 / Google Finance, Investing.com)
 > ⚠️ Keine Anlageberatung. Nur zur Information. Zahlen an der Primärquelle prüfen.
