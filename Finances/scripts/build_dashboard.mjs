@@ -213,6 +213,12 @@ details ul{margin:4px 0 8px;padding-left:18px;font-size:14px}
 .detail .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:2px 18px}
 .analyze{background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:9px 12px;margin-top:10px;font-size:14px}
 .more{display:block;width:100%;padding:12px;border:0;background:#fff;border-top:1px solid var(--bd);font:600 15px inherit;color:#3730a3;cursor:pointer}
+details.sector{background:var(--card);border:1px solid var(--bd);border-radius:12px;margin-bottom:8px;overflow:hidden}
+details.sector>summary{padding:13px 16px;font-weight:600;cursor:pointer;list-style:none}
+details.sector>summary::-webkit-details-marker{display:none}
+details.sector>summary:before{content:"▸ ";color:var(--mut)}
+details.sector[open]>summary:before{content:"▾ "}
+details.sector .list{border:0;border-top:1px solid var(--bd);border-radius:0}
 footer{margin-top:30px;color:var(--mut);font-size:12px;text-align:center}
 `;
 
@@ -302,9 +308,30 @@ function renderPortfolio(){
   document.getElementById("portfolio").innerHTML=h;
 }
 
+var SECTOR_TOP = 20; // Top N je Sektor
+function renderSectors(){
+  var by={};
+  STOCKS.forEach(function(s){var k=s.s||"Ohne Sektor";(by[k]=by[k]||[]).push(s);});
+  var names=Object.keys(by).sort(function(a,b){return a.localeCompare(b,"de");});
+  var h="";
+  names.forEach(function(name){
+    var arr=by[name].slice().sort(function(a,b){return b.mc-a.mc;}).slice(0,SECTOR_TOP);
+    var rows="";
+    arr.forEach(function(s){
+      var dot=s.r?('<span class="dot '+cls(s.r.a)+'"></span>'):"";
+      rows+='<div class="row" onclick="toggle(this,\\''+s.t+'\\')">'+
+        '<span class="t">'+esc(s.t)+'</span>'+
+        '<span class="nm">'+esc(s.n)+'</span>'+
+        '<span class="rt">'+cap(s.mc)+dot+'</span></div>';
+    });
+    h+='<details class="sector"><summary>'+esc(name)+' <span class="muted small">('+by[name].length+' Werte · Top '+arr.length+')</span></summary><div class="list">'+rows+'</div></details>';
+  });
+  document.getElementById("sectors").innerHTML=h;
+}
+
 document.getElementById("q").addEventListener("input",function(e){q=e.target.value;shown=300;renderList();});
 document.getElementById("sort").addEventListener("change",function(e){sortKey=e.target.value;renderList();});
-renderPortfolio();renderList();
+renderPortfolio();renderSectors();renderList();
 `;
 
 const html = `<!DOCTYPE html>
@@ -328,6 +355,10 @@ const html = `<!DOCTYPE html>
 
   <h2>⭐ Mein Kern-Portfolio</h2>
   <div id="portfolio" class="grid"></div>
+
+  <h2>🗂️ Sektor-Überblick <span class="muted small" style="font-weight:400">· je Branche die 20 größten Unternehmen</span></h2>
+  <div class="sub" style="margin-bottom:8px">Aufklappen zum Stöbern · jede Aktie antippbar für Details. Kostet keine zusätzlichen Datenabrufe.</div>
+  <div id="sectors"></div>
 
   <h2>🇺🇸 Alle US-Aktien</h2>
   <div class="sub" style="margin-bottom:8px">${universeNote}</div>
