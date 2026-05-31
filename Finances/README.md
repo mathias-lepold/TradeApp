@@ -132,6 +132,24 @@ Tiefenanalyse (Trichter-Prinzip). Vier Strategien stehen bereit:
 
 Einrichtung (kostenloser API-Key) und Details: siehe **[`STRATEGIEN.md`](STRATEGIEN.md)**.
 
+## 📊 Dashboard (PC & iPhone)
+
+Ein übersichtliches Dashboard fasst Kern-Portfolio (Ampeln, Kurse, faire
+Spannen) und das letzte Screening auf einer Seite zusammen:
+
+```
+/dashboard
+```
+Das erzeugt eine einzige HTML-Datei (`dashboard.html`) – ohne Server, ohne
+Abhängigkeiten.
+
+- **PC:** Datei doppelklicken → öffnet im Browser.
+- **iPhone:** Datei in den OneDrive-Ordner legen (oder direkt dorthin bauen mit
+  `/dashboard "C:/Users/<Name>/OneDrive/dashboard.html"`), in Safari öffnen und
+  über „Teilen → Zum Home-Bildschirm" als App-Icon ablegen.
+
+Nach neuen Analysen oder Screenings einfach `/dashboard` erneut ausführen.
+
 ## 📁 Empfohlener Workflow
 
 ```

@@ -12,6 +12,7 @@ Thumbs.db
 *.log
 logs/
 screen_results/
+dashboard.html
 make_diagram.py
 
 # Environment
