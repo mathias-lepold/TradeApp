@@ -424,7 +424,7 @@ const html = `<!DOCTYPE html>
   <h2>⭐ Mein Kern-Portfolio</h2>
   <div id="portfolio" class="grid"></div>
 
-  <h2>🗂️ Sektor-Überblick <span class="muted small" style="font-weight:400">· je Branche die 20 größten Unternehmen</span></h2>
+  <h2>🗂️ Sektor-Überblick <span class="muted small" style="font-weight:400">· je Branche die 10 größten Unternehmen</span></h2>
   <div class="sub" style="margin-bottom:8px">Aufklappen zum Stöbern · jede Aktie antippbar für Details. Kostet keine zusätzlichen Datenabrufe.</div>
   <div id="sectors"></div>
 
