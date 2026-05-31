@@ -219,6 +219,10 @@ details.sector>summary::-webkit-details-marker{display:none}
 details.sector>summary:before{content:"▸ ";color:var(--mut)}
 details.sector[open]>summary:before{content:"▾ "}
 details.sector .list{border:0;border-top:1px solid var(--bd);border-radius:0}
+details.sector .row{align-items:start}
+details.sector .nm{white-space:normal;color:var(--tx)}
+details.sector .nm b{font-weight:600}
+.biz{display:block;color:var(--mut);font-size:12px;line-height:1.35;margin-top:2px}
 footer{margin-top:30px;color:var(--mut);font-size:12px;text-align:center}
 `;
 
@@ -248,6 +252,8 @@ function analysisBlock(r){
 }
 
 function detail(s){
+  var bz=biz(s.t);
+  var bl=bz?('<div class="muted" style="margin-bottom:8px">🏢 '+esc(bz)+'</div>'):"";
   var g='<div class="grid2">'+
     kv("Sektor",s.s||"–")+kv("Branche",s.i||"–")+
     kv("Marktkap.",cap(s.mc))+kv("Kurs",px(s.p))+
@@ -256,7 +262,7 @@ function detail(s){
   var a = s.r ? ('<div style="margin-top:10px">'+analysisBlock(s.r)+'</div>')
              : '<div class="muted small" style="margin-top:8px">Tiefe Kennzahlen (KGV, ROE, Wachstum…) erscheinen nach der Tiefenanalyse.</div>';
   var cmd='<div class="analyze">🔍 <b>Tiefenanalyse starten</b> – in Claude Code eingeben:<br><code>/analyze '+esc(s.t)+'</code></div>';
-  return '<div class="detail">'+g+a+cmd+'</div>';
+  return '<div class="detail">'+bl+g+a+cmd+'</div>';
 }
 
 function filtered(){
@@ -308,7 +314,67 @@ function renderPortfolio(){
   document.getElementById("portfolio").innerHTML=h;
 }
 
-var SECTOR_TOP = 20; // Top N je Sektor
+// Kurzbeschreibungen der größten US-Werte (kuratiert, keine API-Abrufe).
+// Fehlt ein Ticker, wird einfach keine Beschreibung gezeigt.
+var BIZ={
+  // Technology
+  AAPL:"iPhone, Mac & Dienste-Ökosystem",MSFT:"Windows, Office & Azure-Cloud",NVDA:"KI- & Grafikchips",
+  AVGO:"Halbleiter & Infrastruktur-Software",ORCL:"Datenbanken & Unternehmens-Cloud",CRM:"CRM-Cloud-Software (Salesforce)",
+  AMD:"Prozessoren & Grafikchips",ADBE:"Kreativ- & Dokumentensoftware",CSCO:"Netzwerktechnik & Hardware",
+  ACN:"IT- & Strategieberatung",TXN:"Analog-Halbleiter",QCOM:"Mobilfunk-Chips & Patente",
+  INTC:"Prozessoren & Chipfertigung",IBM:"IT-Dienste, Software & Mainframes",NOW:"Workflow-Cloud (ServiceNow)",
+  INTU:"Steuer- & Finanzsoftware (TurboTax)",AMAT:"Maschinen für die Chipfertigung",MU:"Speicherchips (DRAM/NAND)",
+  PLTR:"Datenanalyse-Software",
+  // Communication Services
+  GOOGL:"Google-Suche, Werbung & YouTube",GOOG:"Google-Suche, Werbung & YouTube",META:"Facebook, Instagram & WhatsApp",
+  NFLX:"Video-Streaming",DIS:"Medien, Filme & Freizeitparks",CMCSA:"Kabel/Breitband & NBCUniversal",
+  T:"Telekommunikation (AT&T)",VZ:"Telekommunikation (Verizon)",TMUS:"Mobilfunk (T-Mobile US)",
+  CHTR:"Kabel & Breitband",EA:"Videospiele",
+  // Consumer Cyclical
+  AMZN:"Online-Handel & AWS-Cloud",TSLA:"Elektroautos & Energiespeicher",HD:"Baumarkt-Kette (Home Depot)",
+  MCD:"Fast-Food-Kette",NKE:"Sportartikel & Bekleidung",LOW:"Baumarkt-Kette (Lowe's)",
+  SBUX:"Kaffeehaus-Kette",BKNG:"Online-Reisebuchung",TJX:"Discount-Mode (TK Maxx)",ABNB:"Vermittlung von Unterkünften",
+  // Consumer Defensive
+  WMT:"Größte Einzelhandelskette der USA",COST:"Großhandels-Clubs (Costco)",PG:"Markenkonsumgüter (P&G)",
+  KO:"Getränke (Coca-Cola)",PEP:"Getränke & Snacks (PepsiCo)",PM:"Tabak (international)",
+  MO:"Tabak (USA, Altria)",MDLZ:"Snacks & Süßwaren",CL:"Körperpflege (Colgate)",TGT:"Einzelhandelskette (Target)",
+  // Healthcare
+  LLY:"Pharma (Diabetes-/Abnehm-Mittel)",UNH:"Krankenversicherung & Gesundheitsdienste",JNJ:"Pharma & Medizintechnik",
+  ABBV:"Biopharma-Medikamente",MRK:"Pharma (Merck & Co.)",TMO:"Labor- & Diagnostik-Ausrüstung",
+  ABT:"Medizintechnik & Diagnostik",PFE:"Pharma (Pfizer)",DHR:"Life-Science & Diagnostik",
+  AMGN:"Biotechnologie",ISRG:"OP-Roboter (da Vinci)",BMY:"Pharma (Bristol-Myers Squibb)",
+  // Financial Services
+  "BRK-B":"Beteiligungs-Konglomerat (Buffett)","BRK.B":"Beteiligungs-Konglomerat (Buffett)",JPM:"Größte US-Bank",
+  V:"Zahlungsnetzwerk (Visa)",MA:"Zahlungsnetzwerk (Mastercard)",BAC:"Großbank (Bank of America)",
+  WFC:"Großbank (Wells Fargo)",GS:"Investmentbank (Goldman Sachs)",MS:"Investmentbank & Vermögensverwaltung",
+  AXP:"Kreditkarten (American Express)",BLK:"Vermögensverwaltung (BlackRock)",SPGI:"Ratings & Finanzdaten",
+  C:"Großbank (Citigroup)",SCHW:"Online-Broker (Charles Schwab)",
+  // Industrials
+  GE:"Flugzeugtriebwerke (GE Aerospace)",CAT:"Bau- & Bergbaumaschinen",RTX:"Luftfahrt & Rüstung (Raytheon)",
+  HON:"Industrie- & Technik-Konglomerat",UNP:"Güter-Eisenbahn",BA:"Flugzeugbau (Boeing)",
+  DE:"Landmaschinen (John Deere)",LMT:"Rüstung (Lockheed Martin)",UPS:"Paket- & Logistikdienst",
+  ETN:"Elektrotechnik & Energiemanagement",GD:"Rüstung (General Dynamics)",NOC:"Rüstung (Northrop Grumman)",
+  // Energy
+  XOM:"Öl & Gas (ExxonMobil)",CVX:"Öl & Gas (Chevron)",COP:"Öl- & Gasförderung",
+  SLB:"Ölfeld-Dienstleistungen",EOG:"Öl- & Gasförderung",MPC:"Raffinerien (Marathon)",
+  PSX:"Raffinerien (Phillips 66)",WMB:"Erdgas-Pipelines",OXY:"Öl & Gas (Occidental)",
+  VLO:"Raffinerien (Valero)",KMI:"Pipeline-Infrastruktur",
+  // Basic Materials
+  LIN:"Industriegase (Linde)",SHW:"Farben & Lacke (Sherwin-Williams)",APD:"Industriegase (Air Products)",
+  ECL:"Wasser- & Hygiene-Chemie",FCX:"Kupfer-Bergbau",NEM:"Gold-Bergbau",
+  DOW:"Basis-Chemie",NUE:"Stahlproduktion (Nucor)",DD:"Spezialchemie (DuPont)",
+  // Utilities
+  NEE:"Stromversorger & Erneuerbare",SO:"Stromversorger (Southern Co.)",DUK:"Stromversorger (Duke Energy)",
+  CEG:"Stromerzeugung (Kernkraft)",AEP:"Stromversorger",D:"Energieversorger (Dominion)",
+  SRE:"Energieversorger (Sempra)",EXC:"Stromversorger (Exelon)",XEL:"Stromversorger (Xcel)",
+  // Real Estate (REITs)
+  PLD:"Logistik-Immobilien (REIT)",AMT:"Funkturm-Immobilien (REIT)",EQIX:"Rechenzentren (REIT)",
+  WELL:"Gesundheits-Immobilien (REIT)",SPG:"Einkaufszentren (REIT)",PSA:"Self-Storage (REIT)",
+  CCI:"Funkturm-Infrastruktur (REIT)",O:"Einzelhandels-Immobilien (REIT)",DLR:"Rechenzentren (REIT)"
+};
+function biz(t){return BIZ[t]||BIZ[t.replace(/\\./g,"-")]||BIZ[t.replace(/-/g,".")]||"";}
+
+var SECTOR_TOP = 10; // Top N je Sektor
 function renderSectors(){
   var by={};
   STOCKS.forEach(function(s){var k=s.s||"Ohne Sektor";(by[k]=by[k]||[]).push(s);});
@@ -319,9 +385,11 @@ function renderSectors(){
     var rows="";
     arr.forEach(function(s){
       var dot=s.r?('<span class="dot '+cls(s.r.a)+'"></span>'):"";
+      var b=biz(s.t);
+      var nm='<b>'+esc(s.n)+'</b>'+(b?'<span class="biz">'+esc(b)+'</span>':'');
       rows+='<div class="row" onclick="toggle(this,\\''+s.t+'\\')">'+
         '<span class="t">'+esc(s.t)+'</span>'+
-        '<span class="nm">'+esc(s.n)+'</span>'+
+        '<span class="nm">'+nm+'</span>'+
         '<span class="rt">'+cap(s.mc)+dot+'</span></div>';
     });
     h+='<details class="sector"><summary>'+esc(name)+' <span class="muted small">('+by[name].length+' Werte · Top '+arr.length+')</span></summary><div class="list">'+rows+'</div></details>';
