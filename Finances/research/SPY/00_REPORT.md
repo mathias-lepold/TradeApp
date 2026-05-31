@@ -1,39 +1,39 @@
 # 📋 Gesamt-Report: SPDR S&P 500 ETF (SPY)
 
-> **Analysedatum:** 2026-05-31 · **Aktueller Kurs:** 756,48 USD (2026-05-29 · stockanalysis.com / Yahoo Finance)
+> **Analysedatum:** 2026-05-31 · **Aktueller Kurs:** 756,48 USD (2026-05-29 · Yahoo Finance / stockanalysis.com)
 > ⚠️ Keine Anlageberatung. Nur zur Information. Zahlen an der Primärquelle prüfen.
 
 ## 🚦 Einschätzung
 
-**Ampel: 🔴** — Trailing-KGV ~27,4x, Forward-KGV ~21–22x und CAPE/Shiller von 41,3 liegen deutlich über dem historischen Schnitt; das Markt­niveau ist historisch hoch bewertet und bietet nur begrenzten Sicherheitspuffer.
+**Ampel: 🔴** — Shiller-CAPE von 41,3 (zweithöchster Wert seit 1881, nur dot-com-Gipfel war teurer) und Trailing-KGV ~27,4× signalisieren historisch extreme Überbewertung mit sehr begrenztem Sicherheitspuffer.
 
 | | |
 |---|---|
-| Faire Wertspanne (Modell) | Marktniveau: historisch hoch bewertet — CAPE 41,3 vs. Langfristschnitt ~17 (Multpl) / ~32 je Berechnungsmethode |
+| Faire Wertspanne (Modell) | Marktniveau: historisch hoch bewertet — CAPE 41,3 vs. Langfristschnitt ~17 (Multpl.com); Forward-KGV ~21–22× vs. 10J-Schnitt ~23× |
 | Aktueller Kurs | 756,48 USD (2026-05-29) |
-| Einordnung | Deutlich über historischem Fair-Value-Niveau; nur dot-com-Hochpunkt 1999–2000 war teurer |
+| Einordnung | Weit über langfristigem Fair-Value; strukturell teuer — ähnliches Niveau wie dot-com-Gipfel 1999/2000 |
 
 ## ✅ Top-3 Pro
 
-1. **Breite Diversifikation & Marktstandard:** SPY bildet 500 der größten US-Unternehmen ab, deckt ca. 80 % der US-Marktkapitalisierung ab und ist die etablierte Benchmark für den US-Large-Cap-Markt.
-2. **Extrem niedrige Kosten (TER 0,0945 %):** Die Kostenquote ist eine der niedrigsten unter den großen ETFs; Tracking-Fehler gegenüber dem S&P 500 ist minimal. Quelle: State Street / etfdb.com (2026).
-3. **Hohe Liquidität & großes AUM:** Mit einem verwalteten Vermögen von ~782 Mrd. USD (2026-05-29 · stockanalysis.com) ist SPY der liquideste ETF weltweit — enge Spreads, keine Markttiefenprobleme.
+1. **Breite Diversifikation & etablierter Marktstandard:** SPY bildet 500 der größten US-Unternehmen ab, deckt ca. 80 % der US-Marktkapitalisierung ab und ist die meistgehandelte ETF-Benchmark weltweit. Einstiegspunkt in den gesamten US-Large-Cap-Markt mit einem einzigen Instrument.
+2. **Extrem niedrige Kosten (TER 0,0945 %):** Die Kostenquote gehört zu den niedrigsten ihrer Klasse; der Tracking Error gegenüber dem S&P 500 ist minimal. Quelle: State Street / etfdb.com (2026).
+3. **Außerordentlich hohe Liquidität und AUM:** Mit verwaltetem Vermögen von ca. 782 Mrd. USD (2026-05-29 · stockanalysis.com / Yahoo Finance) ist SPY der liquideste ETF der Welt — enge Bid-Ask-Spreads, kein Markttiefenproblem auch bei sehr großen Positionen.
 
 ## ⛔ Top-3 Contra
 
-1. **Extreme Mega-Cap-Konzentration:** Die Top-10-Positionen machen ~39–41 % des Index aus (2026-05-27 · twelfthmagpie.com / cryptobriefing.com); Nvidia allein ~7–8 %, Apple ~6 %. Historischer 30-Jahres-Schnitt der Top-10-Gewichtung lag bei ~25 %.
-2. **Sehr hohes Bewertungsniveau (CAPE 41,3):** Der Shiller-CAPE von 41,33 (2026-05-01 · gurufocus.com) ist der zweithöchste Wert in über 140 Jahren Marktgeschichte — nur der dot-com-Höhepunkt 1999 war teurer (44,2). Historischer Langfristschnitt: ~17 (Multpl) bzw. ~32 je Berechnungsbasis.
-3. **Klumpenrisiko Technologie/KI:** Der IT-Sektor hat ein Gewicht von ~33 % (State Street / indexbox.io, 2026); über 70 % des IT-Sektors entfallen auf wenige Einzeltitel. Bewertungsrückschläge bei KI-Erwartungen, Zinsanstieg oder Regulierung würden den gesamten Index überproportional treffen.
+1. **Extreme Mega-Cap-Konzentration (Klumpenrisiko):** Die Top-5-Positionen allein (Nvidia ~7,6 %, Apple ~6,7 %, Microsoft ~4,9 %, Amazon ~3,6 %, Alphabet ~3,0 %) machen ca. 26 % des Index aus; Top-10 zusammen ~39–41 % — historisch beispiellos. Quelle: State Street Factsheet, März 2026; ssga.com.
+2. **Historisch extremes Bewertungsniveau (CAPE 41,3):** Der Shiller-CAPE von 41,33 (2026-05-01 · gurufocus.com) ist der zweithöchste Wert in über 140 Jahren US-Marktgeschichte; Trailing-KGV 27,4× (2026-05-29 · gurufocus.com) liegt 70 % über dem Langfristschnitt von ~16. Die reale Gewinnrendite beträgt nur ca. 2,4 % — kein Sicherheitspuffer bei Makroschocks.
+3. **Technologie-/KI-Klumpenrisiko:** Der IT-Sektor hat ein Gewicht von 37,26 % (2026-05-28 · S&P Global / SSGA Sector Tracker); über 70 % davon konzentriert auf wenige Einzeltitel. Bewertungskorrekturen bei KI-Enttäuschungen, Zinsanstiegen oder Tech-Regulierung würden den Gesamtindex überproportional belasten.
 
 ## 🔎 Kurz-Steckbrief
 
 - **Sektor/Branche:** Breiter Markt / US-Large-Cap-ETF
 - **Marktkapitalisierung:** AUM ca. 782 Mrd. USD (2026-05-29 · stockanalysis.com / Yahoo Finance)
-- **Geschäftsmodell in einem Satz:** SPY repliziert den S&P 500 durch physische Vollreplikation und schüttet Dividenden der 500 enthaltenen US-Unternehmen quartalsweise aus.
+- **Geschäftsmodell in einem Satz:** SPY repliziert den S&P 500 durch physische Vollreplikation (500 US-Large-Caps) und schüttet die Dividenden der enthaltenen Unternehmen quartalsweise aus.
 - **Anbieter:** State Street Global Advisors (SSGA)
 - **Börse:** NYSE Arca (USD)
 - **Kostenquote (TER):** 0,0945 % p. a. (State Street / etfdb.com, 2026)
-- **Ausschüttungsrendite:** ~1,0 % p. a. (letzte Quartalsdividende: 1,80 USD je Anteil, ausgezahlt 2026-04-30 · stockevents.app)
+- **Ausschüttungsrendite:** ~1,0 % p. a. TTM; letzte Quartalsdividende: 1,80 USD je Anteil (ausgezahlt 2026-04-30 · dividend.com)
 - **Anzahl Positionen:** 500 (S&P-500-Komponenten)
 - **Auflagedatum:** 22. Januar 1993
 

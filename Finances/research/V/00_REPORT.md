@@ -1,6 +1,6 @@
 # 📋 Gesamt-Report: Visa Inc. (V)
 
-> **Analysedatum:** 2026-05-31 · **Aktueller Kurs:** $326,36 USD (29.05.2026 / StockAnalysis via S&P Global)
+> **Analysedatum:** 2026-05-31 · **Aktueller Kurs:** $327,00 USD (31.05.2026 / StockAnalysis / CNBC)
 > ⚠️ Keine Anlageberatung. Nur zur Information. Zahlen an der Primärquelle prüfen.
 
 ## 🚦 Einschätzung
@@ -10,7 +10,7 @@
 | | |
 |---|---|
 | Faire Wertspanne (Modell) | $340 – $420 |
-| Aktueller Kurs | $326,36 (29.05.2026) |
+| Aktueller Kurs | $327,00 (31.05.2026) |
 | Einordnung | Leicht unter der fairen Spanne (Bär-Seite) |
 
 ## ✅ Top-3 Pro
