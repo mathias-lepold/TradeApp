@@ -8,8 +8,11 @@ Thumbs.db
 *.suo
 *.user
 
-# Logs
+# Logs & generierte Lauf-Artefakte
 *.log
+logs/
+screen_results/
+make_diagram.py
 
 # Environment
 .env

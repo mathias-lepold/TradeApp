@@ -58,15 +58,23 @@ Crontab öffnen:
 crontab -e
 ```
 
-Eine Zeile am Ende einfügen. Beispiele:
+Eine Zeile am Ende einfügen. Empfohlenes Setup (zwei Jobs):
 
 ```cron
-# Jeden Werktag um 07:00 Uhr die ganze Watchlist analysieren
-0 7 * * 1-5 cd /pfad/zu/Finances && /usr/bin/bash scripts/run_analysis.sh >> logs/cron.log 2>&1
+# 1) KERN-PORTFOLIO: jeden Werktag 07:00 die Watchlist auf Stand halten
+0 7 * * 1-5 cd /pfad/zu/Finances && set -a && . ./.env && set +a && /usr/bin/bash scripts/run_analysis.sh >> logs/cron.log 2>&1
+
+# 2) SCREENING-TRICHTER: jeden Samstag 06:00 die US-Börse screenen + Top 10 tief analysieren
+0 6 * * 6 cd /pfad/zu/Finances && set -a && . ./.env && set +a && /usr/bin/bash scripts/screen_and_analyze.sh quality-growth 10 >> logs/cron.log 2>&1
 ```
 
+> `. ./.env` lädt deinen `FMP_API_KEY` (für den Screener). Lege dazu im
+> Finances-Ordner eine `.env` mit `FMP_API_KEY=dein_key` an (siehe `STRATEGIEN.md`).
+> Du kannst die Strategie im zweiten Job wechseln (`value`, `dividend`, `momentum`)
+> oder mehrere Zeilen für verschiedene Strategien an unterschiedlichen Tagen anlegen.
+
+Einfacheres Beispiel (nur Kern-Portfolio, einmal pro Woche):
 ```cron
-# Jeden Montag um 06:30 Uhr
 30 6 * * 1 cd /pfad/zu/Finances && /usr/bin/bash scripts/run_analysis.sh >> logs/cron.log 2>&1
 ```
 

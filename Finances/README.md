@@ -116,11 +116,28 @@ Die komplette Schritt-für-Schritt-Anleitung findest du in
 
 ---
 
+## 🔻 Screener – die ganze US-Börse durchsuchen
+
+Statt tausende Aktien einzeln zu analysieren, filtert der **Screener** die
+US-Börse erst nach harten Kennzahlen und übergibt nur die Top-Kandidaten an die
+Tiefenanalyse (Trichter-Prinzip). Vier Strategien stehen bereit:
+`quality-growth`, `value`, `dividend`, `momentum`.
+
+```
+/screen quality-growth        # Shortlist nach Wachstum+Qualität
+/screen value                 # günstig bewertete Aktien
+/screen dividend              # solide Dividendenzahler
+/screen momentum --etf        # ETFs im Aufwärtstrend
+```
+
+Einrichtung (kostenloser API-Key) und Details: siehe **[`STRATEGIEN.md`](STRATEGIEN.md)**.
+
 ## 📁 Empfohlener Workflow
 
 ```
-1. Ticker zur watchlist.md hinzufügen
-2. /analyze <TICKER>   →  research/<TICKER>/ wird erstellt
-3. research/<TICKER>/00_REPORT.md lesen  →  Gesamteinschätzung
-4. (optional) Cronjob übernimmt das automatisch für die ganze Watchlist
+1. Kern-Portfolio in watchlist.md pflegen  →  laufende Tiefenanalyse
+2. /screen <strategie>   →  Shortlist neuer Kandidaten aus der ganzen Börse
+3. /analyze <TICKER>     →  research/<TICKER>/ mit Gesamt-Report + Ampel
+4. Cronjob hält das Kern-Portfolio aktuell und screent wöchentlich automatisch
+   (siehe scripts/cron_setup.md)
 ```

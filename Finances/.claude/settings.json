@@ -5,7 +5,10 @@
       "WebFetch",
       "Read",
       "Write",
-      "Edit"
+      "Edit",
+      "Bash(node scripts/screen.mjs:*)",
+      "Bash(bash scripts/run_analysis.sh:*)",
+      "Bash(bash scripts/screen_and_analyze.sh:*)"
     ]
   }
 }
