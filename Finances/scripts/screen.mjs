@@ -19,7 +19,7 @@
 
 import { writeFileSync, mkdirSync } from "node:fs";
 
-const API = "https://financialmodelingprep.com/api/v3";
+const API = "https://financialmodelingprep.com/stable";
 const KEY = process.env.FMP_API_KEY;
 if (!KEY) {
   console.error("FEHLER: Umgebungsvariable FMP_API_KEY ist nicht gesetzt.");
@@ -62,7 +62,8 @@ async function baseUniverse() {
   if (strategy === "dividend") p.set("dividendMoreThan", "0.5"); // zahlt ueberhaupt Dividende
   if (!isEtf) p.set("marketCapMoreThan", "2000000000");          // > 2 Mrd. (keine Micro-Caps)
   else p.set("marketCapMoreThan", "500000000");                 // ETFs: > 500 Mio. AUM
-  const data = await getJSON(`${API}/stock-screener?${p.toString()}`);
+  // FMP "stable"-API: Endpoint heisst company-screener (frueher v3: stock-screener)
+  const data = await getJSON(`${API}/company-screener?${p.toString()}`);
   return Array.isArray(data) ? data : [];
 }
 
@@ -82,27 +83,30 @@ async function enrichAndScore(candidates) {
     try {
       const row = { symbol: c.symbol, name: c.companyName, price: c.price, marketCap: c.marketCap, sector: c.sector };
       if (strategy === "momentum" || isEtf) {
-        const ch = (await getJSON(`${API}/stock-price-change/${c.symbol}`))[0] || {};
+        const ch = (await getJSON(`${API}/stock-price-change?symbol=${c.symbol}`))[0] || {};
         row.m3 = ch["3M"]; row.m6 = ch["6M"]; row.y1 = ch["1Y"];
         row.score = (num(ch["3M"]) * 0.4 + num(ch["6M"]) * 0.4 + num(ch["1Y"]) * 0.2);
         if (num(ch["6M"]) <= 0) row.score -= 50; // negativer Trend wird abgestraft
       } else if (strategy === "dividend") {
-        const r = (await getJSON(`${API}/ratios-ttm/${c.symbol}`))[0] || {};
-        const yld = pct(r.dividendYielTTM ?? r.dividendYieldTTM);
-        const payout = pct(r.payoutRatioTTM);
+        const r = (await getJSON(`${API}/ratios-ttm?symbol=${c.symbol}`))[0] || {};
+        const yld = pct(pick(r, "dividendYieldTTM", "dividendYielTTM", "dividendYieldPercentageTTM"));
+        const payout = pct(pick(r, "payoutRatioTTM", "dividendPayoutRatioTTM"));
         row.yield = yld; row.payout = payout;
         row.score = yld - (payout > 80 ? (payout - 80) : 0); // hohe Rendite, aber Ausschuettung tragfaehig
         if (yld < 1.5 || yld > 12) row.score -= 100;        // zu niedrig / Dividenden-Falle
       } else if (strategy === "value") {
-        const r = (await getJSON(`${API}/ratios-ttm/${c.symbol}`))[0] || {};
-        row.pe = r.peRatioTTM; row.pb = r.priceToBookRatioTTM; row.roe = pct(r.returnOnEquityTTM);
-        const pe = num(r.peRatioTTM), pb = num(r.priceToBookRatioTTM);
+        const r = (await getJSON(`${API}/ratios-ttm?symbol=${c.symbol}`))[0] || {};
+        const pe = pick(r, "priceToEarningsRatioTTM", "peRatioTTM");
+        const pb = pick(r, "priceToBookRatioTTM", "priceToBookTTM", "pbRatioTTM");
+        row.pe = pe; row.pb = pb; row.roe = pct(pick(r, "returnOnEquityTTM"));
         row.score = (pe > 0 ? 1000 / pe : -50) + (pb > 0 ? 100 / pb : 0) + row.roe * 0.5;
-        if (pe <= 0) row.score -= 100; // keine Gewinne -> kein Value
+        if (!(pe > 0)) row.score -= 100; // keine Gewinne -> kein Value
       } else { // quality-growth
-        const r = (await getJSON(`${API}/ratios-ttm/${c.symbol}`))[0] || {};
-        const g = (await getJSON(`${API}/financial-growth/${c.symbol}?period=annual&limit=1`))[0] || {};
-        const growth = pct(g.revenueGrowth), roe = pct(r.returnOnEquityTTM), nm = pct(r.netProfitMarginTTM);
+        const r = (await getJSON(`${API}/ratios-ttm?symbol=${c.symbol}`))[0] || {};
+        const g = (await getJSON(`${API}/financial-growth?symbol=${c.symbol}&period=annual&limit=1`))[0] || {};
+        const growth = pct(pick(g, "revenueGrowth", "growthRevenue"));
+        const roe = pct(pick(r, "returnOnEquityTTM"));
+        const nm = pct(pick(r, "netProfitMarginTTM", "netIncomeMarginTTM"));
         row.growth = growth; row.roe = roe; row.netMargin = nm;
         row.score = growth * 1.2 + roe * 0.6 + nm * 0.6;
         if (growth < 5) row.score -= 50; // zu wenig Wachstum
@@ -117,6 +121,8 @@ async function enrichAndScore(candidates) {
 
 const num = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const pct = v => num(v) * (Math.abs(num(v)) < 3 ? 100 : 1); // FMP gibt teils 0.18 statt 18%
+// nimmt den ersten vorhandenen numerischen Feldwert (Feldnamen unterscheiden sich je nach FMP-API-Version)
+const pick = (o, ...keys) => { for (const k of keys) if (o && o[k] != null && Number.isFinite(Number(o[k]))) return Number(o[k]); return NaN; };
 
 function fmtRow(r, i) {
   const cap = r.marketCap ? `$${(r.marketCap / 1e9).toFixed(1)} Mrd.` : "-";
