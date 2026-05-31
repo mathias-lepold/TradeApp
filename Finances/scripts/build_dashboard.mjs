@@ -54,13 +54,14 @@ function parseWatchlist() {
     if (cells.length < 5) continue;
     const ticker = cells[0];
     if (!ticker || /^ticker$/i.test(ticker) || /^-+$/.test(ticker)) continue;
-    rows.push({ ticker, name: cells[1], typ: cells[2], wlAmpel: cells[4], notiz: cells[5] || "" });
+    rows.push({ ticker, name: cells[1], typ: cells[2], wlAmpel: cells[4], wlTrend: cells[5], notiz: cells[6] || "" });
   }
   return rows;
 }
 
 // ---------- Einzel-Report (00_REPORT.md) ----------
 const AMPELS = ["🟢", "🟡", "🔴"];
+const TRENDS = ["↗", "→", "↘"];
 function parseReport(ticker) {
   const p = join(ROOT, "research", ticker, "00_REPORT.md");
   if (!existsSync(p)) return null;
@@ -167,6 +168,7 @@ for (const s of universe) {
 const portfolio = core.map(c => ({
   t: c.ticker, n: (c.rep && c.rep.company) || c.name, ty: c.typ, no: c.notiz,
   a: (c.rep && c.rep.ampel) || (AMPELS.includes(c.wlAmpel) ? c.wlAmpel : ""),
+  tr: TRENDS.includes(c.wlTrend) ? c.wlTrend : "",
   r: c.rep ? { a: c.rep.ampel, g: c.rep.begruendung, fv: c.rep.fairValue, dt: c.rep.date, pr: c.rep.pros, co: c.rep.contras, price: c.rep.price } : null,
 }));
 
@@ -190,6 +192,9 @@ h2{font-size:18px;margin:26px 0 12px}
 .ticker{font-weight:700;font-size:17px}
 .typ{font-size:12px;color:var(--mut);margin:2px 0 6px}
 .dot{width:13px;height:13px;border-radius:50%;background:var(--n);flex:0 0 auto}
+.hd-rt{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+.trend{font-weight:800;font-size:16px;line-height:1}
+.trend.up{color:var(--g)}.trend.down{color:var(--r)}.trend.side{color:var(--mut)}
 .dot.g{background:var(--g)}.dot.y{background:var(--y)}.dot.r{background:var(--r)}
 .reason{font-size:14px;margin:6px 0}
 .kv{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:3px 0;border-top:1px dashed var(--bd)}
@@ -304,12 +309,17 @@ function toggle(rowEl,t){
   rowEl.parentNode.insertBefore(div.firstChild,rowEl.nextSibling);openTicker=t;
 }
 
+function trCls(t){return t==="↗"?"up":t==="↘"?"down":"side";}
 function renderPortfolio(){
   var h="";
-  PORTFOLIO.forEach(function(p){
+  var arr=PORTFOLIO.slice().sort(function(a,b){return a.t.localeCompare(b.t);});
+  arr.forEach(function(p){
     var c=cls(p.a);
-    var body = p.r ? analysisBlock(p.r) : '<p class="muted">Noch nicht analysiert.'+(p.no?" "+esc(p.no):"")+'</p><div class="muted small">Tipp: <code>/analyze '+esc(p.t)+'</code></div>';
-    h+='<article class="card '+c+'"><div class="hd"><div><span class="ticker">'+esc(p.t)+'</span> <span class="muted">'+esc(p.n)+'</span></div><span class="dot '+c+'"></span></div>'+
+    var tr=p.tr?('<span class="trend '+trCls(p.tr)+'" title="Trend">'+p.tr+'</span>'):"";
+    var body = p.r ? analysisBlock(p.r)
+      : (p.a ? '<p class="muted small">Kurz-Orientierung (Ampel + Trend, ohne Tiefenanalyse).'+(p.no?" "+esc(p.no):"")+'</p><div class="muted small">Für Details: <code>/analyze '+esc(p.t)+'</code></div>'
+             : '<p class="muted">Noch nicht analysiert.'+(p.no?" "+esc(p.no):"")+'</p><div class="muted small">Tipp: <code>/analyze '+esc(p.t)+'</code></div>');
+    h+='<article class="card '+c+'"><div class="hd"><div><span class="ticker">'+esc(p.t)+'</span> <span class="muted">'+esc(p.n)+'</span></div><span class="hd-rt">'+tr+'<span class="dot '+c+'"></span></span></div>'+
        '<div class="typ">'+esc(p.ty||"")+'</div>'+body+'</article>';
   });
   document.getElementById("portfolio").innerHTML=h;
@@ -447,6 +457,7 @@ const html = `<!DOCTYPE html>
   </header>
 
   <h2>⭐ Mein Kern-Portfolio</h2>
+  <div class="sub" style="margin-bottom:8px">Alphabetisch · Ampel 🟢 günstig/solide · 🟡 fair bis teuer · 🔴 Risiko — Trend <b class="trend up">↗</b> aufwärts · <b class="trend side">→</b> seitwärts · <b class="trend down">↘</b> abwärts. Kurz-Orientierung, keine Anlageberatung.</div>
   <div id="portfolio" class="grid"></div>
 
   <h2>🗂️ Sektor-Überblick <span class="muted small" style="font-weight:400">· je Branche die 10 größten Unternehmen</span></h2>
