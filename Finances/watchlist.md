@@ -9,19 +9,20 @@ per `/analyze` auf aktuellem Stand gehalten.
 |--------|---------------------|-----|----------------|-------|-------|
 | ASML | ASML Holding | Aktie | – | – | Chip-Lithografie |
 | AMZN | Amazon | Aktie | – | – | E-Commerce / Cloud |
-| ENR | Energizer Holdings *(?)* | Aktie | – | – | ⚠️ ENR = Energizer (USA) ODER Siemens Energy (DE)? bitte klären |
+| ENR.DE | Siemens Energy | Aktie (DE, Xetra) | – | – | Energietechnik |
 | GOOGL | Alphabet (Google) | Aktie | – | – | – |
 | SPY | SPDR S&P 500 ETF | ETF | – | – | US-Gesamtmarkt |
 | MSFT | Microsoft | Aktie | – | – | – |
-| ACLN | *(?)* | ? | – | – | ⚠️ Ticker unklar – Tippfehler für ACN/Accenture? bitte klären |
+| ACLN.SW | Accelleron Industries | Aktie (CH, SIX) | – | – | Turbolader (ABB-Spin-off) |
 | TSM | Taiwan Semiconductor | Aktie (ADR) | – | – | Chip-Fertigung |
 | V | Visa | Aktie | – | – | Zahlungsverkehr |
 | VT | Vanguard Total World Stock | ETF | – | – | Weltmarkt |
 | NVDA | Nvidia | Aktie | – | 🟡 | KI-Chips (analysiert 2026-05-31) |
 | BN | Brookfield Corporation | Aktie | – | – | Asset Management |
 
-> Die erste Spalte (Großbuchstaben-Ticker) wird vom Skript ausgelesen.
-> Zeilen mit *(?)* bitte erst klären, bevor die Automatik startet.
+> Die erste Spalte (Ticker) wird vom Skript ausgelesen. Europäische Werte
+> tragen das Börsenkürzel (`.DE` = Xetra, `.SW` = SIX), damit `/analyze` sie
+> eindeutig findet. Der US-Screener betrifft nur Einzelwerte ohne Suffix.
 
 ---
 
