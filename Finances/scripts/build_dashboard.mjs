@@ -299,7 +299,7 @@ function toggle(rowEl,t){
   var ex=rowEl.nextSibling;
   if(ex&&ex.className==="detail"){ex.parentNode.removeChild(ex);openTicker=null;return;}
   var old=document.querySelector(".detail");if(old)old.parentNode.removeChild(old);
-  var s=STOCKS.filter(function(x){return x.t===t;})[0];if(!s)return;
+  var s=findStock(t);if(!s)return;
   var div=document.createElement("div");div.innerHTML=detail(s);
   rowEl.parentNode.insertBefore(div.firstChild,rowEl.nextSibling);openTicker=t;
 }
@@ -363,47 +363,61 @@ var BIZ={
   // Basic Materials
   LIN:"Industriegase (Linde)",SHW:"Farben & Lacke (Sherwin-Williams)",APD:"Industriegase (Air Products)",
   ECL:"Wasser- & Hygiene-Chemie",FCX:"Kupfer-Bergbau",NEM:"Gold-Bergbau",
-  DOW:"Basis-Chemie",NUE:"Stahlproduktion (Nucor)",DD:"Spezialchemie (DuPont)",
+  DOW:"Basis-Chemie",NUE:"Stahlproduktion (Nucor)",DD:"Spezialchemie (DuPont)",CTVA:"Saatgut & Agrarchemie",
   // Utilities
   NEE:"Stromversorger & Erneuerbare",SO:"Stromversorger (Southern Co.)",DUK:"Stromversorger (Duke Energy)",
   CEG:"Stromerzeugung (Kernkraft)",AEP:"Stromversorger",D:"Energieversorger (Dominion)",
-  SRE:"Energieversorger (Sempra)",EXC:"Stromversorger (Exelon)",XEL:"Stromversorger (Xcel)",
+  SRE:"Energieversorger (Sempra)",EXC:"Stromversorger (Exelon)",XEL:"Stromversorger (Xcel)",PEG:"Stromversorger (New Jersey)",
   // Real Estate (REITs)
   PLD:"Logistik-Immobilien (REIT)",AMT:"Funkturm-Immobilien (REIT)",EQIX:"Rechenzentren (REIT)",
   WELL:"Gesundheits-Immobilien (REIT)",SPG:"Einkaufszentren (REIT)",PSA:"Self-Storage (REIT)",
-  CCI:"Funkturm-Infrastruktur (REIT)",O:"Einzelhandels-Immobilien (REIT)",DLR:"Rechenzentren (REIT)"
+  CCI:"Funkturm-Infrastruktur (REIT)",O:"Einzelhandels-Immobilien (REIT)",DLR:"Rechenzentren (REIT)",CSGP:"Immobilien-Daten & -Marktplätze"
 };
 function biz(t){return BIZ[t]||BIZ[t.replace(/\\./g,"-")]||BIZ[t.replace(/-/g,".")]||"";}
 
-var SECTOR_TOP = 10; // Top N je Sektor
+// Feste Branchen-Auswahl: je Sektor die rund 10 größten US-Firmen (Schnappschuss).
+// Vollständig & unabhängig von der Datenquelle; alphabetisch nach Branche.
+var CURATED=[
+  ["Basic Materials",[["LIN","Linde plc"],["SHW","Sherwin-Williams"],["APD","Air Products & Chemicals"],["ECL","Ecolab Inc."],["FCX","Freeport-McMoRan"],["NEM","Newmont Corp."],["NUE","Nucor Corp."],["DOW","Dow Inc."],["DD","DuPont de Nemours"],["CTVA","Corteva Inc."]]],
+  ["Communication Services",[["GOOGL","Alphabet Inc."],["META","Meta Platforms"],["NFLX","Netflix Inc."],["TMUS","T-Mobile US"],["DIS","Walt Disney Co."],["CMCSA","Comcast Corp."],["VZ","Verizon Communications"],["T","AT&T Inc."],["CHTR","Charter Communications"],["EA","Electronic Arts"]]],
+  ["Consumer Cyclical",[["AMZN","Amazon.com"],["TSLA","Tesla Inc."],["HD","Home Depot"],["MCD","McDonald's Corp."],["BKNG","Booking Holdings"],["LOW","Lowe's Companies"],["TJX","TJX Companies"],["NKE","Nike Inc."],["SBUX","Starbucks Corp."],["ABNB","Airbnb Inc."]]],
+  ["Consumer Defensive",[["WMT","Walmart Inc."],["COST","Costco Wholesale"],["PG","Procter & Gamble"],["KO","Coca-Cola Co."],["PEP","PepsiCo Inc."],["PM","Philip Morris Intl."],["MO","Altria Group"],["MDLZ","Mondelez Intl."],["CL","Colgate-Palmolive"],["TGT","Target Corp."]]],
+  ["Energy",[["XOM","Exxon Mobil"],["CVX","Chevron Corp."],["COP","ConocoPhillips"],["WMB","Williams Companies"],["EOG","EOG Resources"],["SLB","Schlumberger (SLB)"],["MPC","Marathon Petroleum"],["PSX","Phillips 66"],["OXY","Occidental Petroleum"],["KMI","Kinder Morgan"]]],
+  ["Financial Services",[["BRK-B","Berkshire Hathaway"],["JPM","JPMorgan Chase"],["V","Visa Inc."],["MA","Mastercard Inc."],["BAC","Bank of America"],["WFC","Wells Fargo"],["GS","Goldman Sachs"],["MS","Morgan Stanley"],["AXP","American Express"],["SPGI","S&P Global"]]],
+  ["Healthcare",[["LLY","Eli Lilly"],["UNH","UnitedHealth Group"],["JNJ","Johnson & Johnson"],["ABBV","AbbVie Inc."],["MRK","Merck & Co."],["TMO","Thermo Fisher"],["ABT","Abbott Laboratories"],["ISRG","Intuitive Surgical"],["AMGN","Amgen Inc."],["PFE","Pfizer Inc."]]],
+  ["Industrials",[["GE","GE Aerospace"],["CAT","Caterpillar Inc."],["RTX","RTX Corp."],["HON","Honeywell Intl."],["UNP","Union Pacific"],["BA","Boeing Co."],["DE","Deere & Co."],["LMT","Lockheed Martin"],["ETN","Eaton Corp."],["UPS","United Parcel Service"]]],
+  ["Real Estate",[["PLD","Prologis Inc."],["AMT","American Tower"],["EQIX","Equinix Inc."],["WELL","Welltower Inc."],["SPG","Simon Property Group"],["PSA","Public Storage"],["CCI","Crown Castle"],["DLR","Digital Realty"],["O","Realty Income"],["CSGP","CoStar Group"]]],
+  ["Technology",[["AAPL","Apple Inc."],["MSFT","Microsoft Corp."],["NVDA","NVIDIA Corp."],["AVGO","Broadcom Inc."],["ORCL","Oracle Corp."],["CRM","Salesforce Inc."],["CSCO","Cisco Systems"],["AMD","Advanced Micro Devices"],["ACN","Accenture plc"],["ADBE","Adobe Inc."]]],
+  ["Utilities",[["NEE","NextEra Energy"],["SO","Southern Co."],["DUK","Duke Energy"],["CEG","Constellation Energy"],["AEP","American Electric Power"],["SRE","Sempra"],["D","Dominion Energy"],["EXC","Exelon Corp."],["XEL","Xcel Energy"],["PEG","Public Service Enterprise"]]]
+];
+var CURATED_MAP={};
+CURATED.forEach(function(e){e[1].forEach(function(p){CURATED_MAP[p[0]]={t:p[0],n:p[1],s:e[0]};});});
+
+// Live-Daten zuerst (echte Marktwerte/Analyse), sonst kuratierter Eintrag
+function findStock(t){
+  for(var i=0;i<STOCKS.length;i++){if(STOCKS[i].t===t)return STOCKS[i];}
+  return CURATED_MAP[t]||null;
+}
+
 function renderSectors(){
-  var by={};
-  STOCKS.forEach(function(s){var k=s.s||"Ohne Sektor";(by[k]=by[k]||[]).push(s);});
-  var names=Object.keys(by).sort(function(a,b){return a.localeCompare(b,"de");});
-  // "Ohne Sektor" immer ans Ende, nicht zwischen die echten Branchen
-  names=names.filter(function(n){return n!=="Ohne Sektor";});
-  if(by["Ohne Sektor"]) names.push("Ohne Sektor");
-  var h="";
-  // Selbsterklärender Hinweis, wenn die Datenquelle nur wenig liefert
-  var total=STOCKS.length;
-  var noSec=(by["Ohne Sektor"]||[]).length;
-  var realSectors=names.filter(function(n){return n!=="Ohne Sektor";}).length;
-  if(total && (total<1000 || realSectors<8)){
-    h+='<div class="hint">ℹ️ Der Datenanbieter hat nur <b>'+total.toLocaleString("de-DE")+' Aktien</b> geliefert ('+realSectors+' Branchen'+(noSec?', '+noSec+' ohne Sektor':'')+'). Das deutet auf einen <b>begrenzten (kostenlosen) FMP-Plan</b> hin – mit vollem Plan erscheinen alle 11 Branchen mit echten Top 10. (Kein Dashboard-Fehler.)</div>';
-  }
-  names.forEach(function(name){
-    var arr=by[name].slice().sort(function(a,b){return b.mc-a.mc;}).slice(0,SECTOR_TOP);
+  var h='<div class="hint">ℹ️ Feste Auswahl: je Branche die rund 10 größten US-Unternehmen (Schnappschuss, nicht tagesaktuell). Marktwerte werden – sofern die Datenquelle sie liefert – automatisch ergänzt.</div>';
+  CURATED.forEach(function(entry){
+    var name=entry[0], list=entry[1];
     var rows="";
-    arr.forEach(function(s){
-      var dot=s.r?('<span class="dot '+cls(s.r.a)+'"></span>'):"";
-      var b=biz(s.t);
-      var nm='<b>'+esc(s.n)+'</b>'+(b?'<span class="biz">'+esc(b)+'</span>':'');
-      rows+='<div class="row" onclick="toggle(this,\\''+s.t+'\\')">'+
-        '<span class="t">'+esc(s.t)+'</span>'+
+    list.forEach(function(pair){
+      var t=pair[0], n=pair[1];
+      var live=null;
+      for(var i=0;i<STOCKS.length;i++){if(STOCKS[i].t===t){live=STOCKS[i];break;}}
+      var mc=(live&&live.mc)?cap(live.mc):"";
+      var dot=(live&&live.r)?('<span class="dot '+cls(live.r.a)+'"></span>'):"";
+      var b=biz(t);
+      var nm='<b>'+esc(n)+'</b>'+(b?'<span class="biz">'+esc(b)+'</span>':'');
+      rows+='<div class="row" onclick="toggle(this,\\''+t+'\\')">'+
+        '<span class="t">'+esc(t)+'</span>'+
         '<span class="nm">'+nm+'</span>'+
-        '<span class="rt">'+cap(s.mc)+dot+'</span></div>';
+        '<span class="rt">'+mc+dot+'</span></div>';
     });
-    h+='<details class="sector"><summary>'+esc(name)+' <span class="muted small">('+by[name].length+' Werte · Top '+arr.length+')</span></summary><div class="list">'+rows+'</div></details>';
+    h+='<details class="sector"><summary>'+esc(name)+' <span class="muted small">(Top '+list.length+')</span></summary><div class="list">'+rows+'</div></details>';
   });
   document.getElementById("sectors").innerHTML=h;
 }
