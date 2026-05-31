@@ -134,21 +134,25 @@ Einrichtung (kostenloser API-Key) und Details: siehe **[`STRATEGIEN.md`](STRATEG
 
 ## 📊 Dashboard (PC & iPhone)
 
-Ein übersichtliches Dashboard fasst Kern-Portfolio (Ampeln, Kurse, faire
-Spannen) und das letzte Screening auf einer Seite zusammen:
+Ein übersichtliches Dashboard auf einer Seite:
+- **⭐ Kern-Portfolio** mit Ampeln, fairen Spannen und Pro/Contra aus deinen Analysen
+- **🇺🇸 Alle US-Aktien** als durchsuch- und sortierbare Liste; tippe eine Aktie
+  an → Detailkarte mit allen verfügbaren Kennzahlen + fertigem `/analyze`-Befehl
 
 ```
 /dashboard
 ```
-Das erzeugt eine einzige HTML-Datei (`dashboard.html`) – ohne Server, ohne
-Abhängigkeiten.
+Das erzeugt eine einzige HTML-Datei (`dashboard.html`) – ohne Server. Die
+US-Liste wird über die FMP-API geladen (1 Abruf), du brauchst also den
+`FMP_API_KEY` (siehe `STRATEGIEN.md`). Zum Anschauen ohne Key: `--mock`.
 
 - **PC:** Datei doppelklicken → öffnet im Browser.
-- **iPhone:** Datei in den OneDrive-Ordner legen (oder direkt dorthin bauen mit
-  `/dashboard "C:/Users/<Name>/OneDrive/dashboard.html"`), in Safari öffnen und
+- **iPhone:** direkt in OneDrive bauen
+  (`/dashboard "C:/Users/<Name>/OneDrive/dashboard.html"`), in Safari öffnen und
   über „Teilen → Zum Home-Bildschirm" als App-Icon ablegen.
 
-Nach neuen Analysen oder Screenings einfach `/dashboard` erneut ausführen.
+Tiefe Kennzahlen je Aktie entstehen per `/analyze`; danach `/dashboard` erneut
+ausführen, dann erscheint die volle Auswertung in der Liste.
 
 ## 📁 Empfohlener Workflow
 

@@ -1,38 +1,52 @@
 #!/usr/bin/env node
-// build_dashboard.mjs - erzeugt aus deinen Analysen EIN in sich geschlossenes HTML-Dashboard.
+// build_dashboard.mjs - erzeugt EIN in sich geschlossenes HTML-Dashboard.
+//
+// Inhalt:
+//   1) Dein Kern-Portfolio (aus watchlist.md, angereichert mit den 00_REPORT.md-Analysen)
+//   2) Markt-Explorer: ALLE US-Aktien (1 FMP-Screener-Abruf), durchsuchbar, sortierbar,
+//      anklickbar -> Detailkarte mit allen vorhandenen Kennzahlen + /analyze-Befehl.
 //
 // Liest:
-//   watchlist.md                      -> Kern-Portfolio
-//   research/<TICKER>/00_REPORT.md     -> Ampel, Kurs, faire Wertspanne, Pro/Contra je Aktie
-//   screen_results/<strategie>_*.md    -> letztes Screening-Ergebnis
+//   .env (FMP_API_KEY, falls nicht schon als Umgebungsvariable gesetzt)
+//   watchlist.md
+//   research/<TICKER>/00_REPORT.md
+//   screen_results/<strategie>_*.md  (optional, nur fuer Info)
 //
 // Schreibt:
-//   dashboard.html  (oder ein eigener Pfad als 1. Argument, z.B. dein OneDrive-Ordner)
+//   dashboard.html  (oder eigener Pfad als 1. Argument, z.B. dein OneDrive-Ordner)
 //
 // Nutzung:
 //   node scripts/build_dashboard.mjs
-//   node scripts/build_dashboard.mjs "C:/Users/Mathias Lepold/OneDrive/dashboard.html"
+//   node scripts/build_dashboard.mjs "C:/Users/<Name>/OneDrive/dashboard.html"
+//   node scripts/build_dashboard.mjs --mock      (Demo ohne API-Key, zum Anschauen)
 //
-// Benoetigt keine externen Pakete.
+// Keine externen Pakete noetig (Node 18+).
 
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-const OUT = process.argv[2] || "dashboard.html";
+const args = process.argv.slice(2);
+const MOCK = args.includes("--mock");
+const OUT = args.find(a => !a.startsWith("--")) || "dashboard.html";
 const ROOT = process.cwd();
 const read = p => (existsSync(p) ? readFileSync(p, "utf8") : "");
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// FMP-Key aus Umgebung oder .env
+function apiKey() {
+  if (process.env.FMP_API_KEY) return process.env.FMP_API_KEY.trim();
+  const env = read(join(ROOT, ".env"));
+  const m = env.match(/FMP_API_KEY\s*=\s*(.+)/);
+  return m ? m[1].trim() : "";
+}
 
 // ---------- Watchlist (Kern-Portfolio) ----------
 function parseWatchlist() {
   const txt = read(join(ROOT, "watchlist.md"));
-  // Abschnitt zwischen "Kern-Portfolio" und der naechsten "## "-Ueberschrift
   const start = txt.search(/Kern-Portfolio/i);
   if (start < 0) return [];
   const rest = txt.slice(start);
   const end = rest.search(/\n##\s/);
   const section = end > 0 ? rest.slice(0, end) : rest;
-
   const rows = [];
   for (const line of section.split("\n")) {
     if (!line.trim().startsWith("|")) continue;
@@ -52,31 +66,27 @@ function parseReport(ticker) {
   if (!existsSync(p)) return null;
   const t = read(p);
   const m = (re) => (t.match(re) || [])[1]?.trim() || "";
-
-  // Ampel: in der Einschaetzungs-Zeile. Vorlage enthaelt alle drei (🟢 / 🟡 / 🔴) -> dann unbekannt.
   const ampelLine = (t.match(/Ampel:[^\n]*/) || [""])[0];
   let ampel = "";
   const filledTemplate = /🟢\s*\/\s*🟡\s*\/\s*🔴/.test(ampelLine);
   if (!filledTemplate) ampel = AMPELS.find(a => ampelLine.includes(a)) || "";
   const begruendung = (ampelLine.split(/[—-]/).slice(1).join("-")).replace(/\*/g, "").trim();
-
   const listAfter = (heading) => {
     const idx = t.indexOf(heading);
     if (idx < 0) return [];
     const after = t.slice(idx + heading.length);
-    const block = after.slice(0, after.search(/\n##?\s/) >= 0 ? after.search(/\n##?\s/) : after.length);
+    const cut = after.search(/\n##?\s/);
+    const block = after.slice(0, cut >= 0 ? cut : after.length);
     return block.split("\n")
       .map(l => l.replace(/^\s*(\d+\.|[-*])\s*/, "").trim())
-      .filter(l => l && l !== "…" && !/^\d+\.\s*…?$/.test(l))
+      .filter(l => l && l !== "…" && !/^…$/.test(l))
       .slice(0, 3);
   };
-
   return {
     company: m(/Gesamt-Report:\s*(.+?)\s*\(/),
     date: m(/Analysedatum:\**\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/),
     price: m(/Aktueller Kurs:\**\s*([^()\n·*]+)/),
-    ampel,
-    begruendung,
+    ampel, begruendung,
     fairValue: m(/Faire Wertspanne[^|]*\|\s*([^|]+?)\s*\|/),
     sector: m(/Sektor\/Branche:\**\s*([^\n]+)/).replace(/\*/g, ""),
     marketCap: m(/Marktkapitalisierung:\**\s*([^\n]+)/).replace(/\*/g, ""),
@@ -85,96 +95,217 @@ function parseReport(ticker) {
   };
 }
 
-// ---------- Letztes Screening ----------
-function parseLatestScreen() {
+// ---------- US-Aktien-Universum (1 FMP-Abruf) ----------
+async function fetchUniverse(key) {
+  const base = "https://financialmodelingprep.com/stable/company-screener";
+  const p = new URLSearchParams({
+    country: "US", exchange: "NASDAQ,NYSE,AMEX",
+    isEtf: "false", isFund: "false", isActivelyTrading: "true", limit: "12000",
+  });
+  const res = await fetch(`${base}?${p.toString()}&apikey=${key}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error("unerwartete Antwort");
+  return data.map(d => ({
+    t: d.symbol, n: d.companyName || "", s: d.sector || "", i: d.industry || "",
+    mc: Number(d.marketCap) || 0, p: Number(d.price) || 0, b: Number(d.beta) || 0,
+    d: Number(d.lastAnnualDividend) || 0, v: Number(d.volume) || 0, e: d.exchangeShortName || "",
+  })).filter(x => x.t);
+}
+
+function mockUniverse() {
+  return [
+    { t: "NVDA", n: "NVIDIA Corp", s: "Technology", i: "Semiconductors", mc: 5.1e12, p: 211, b: 1.7, d: 0.04, v: 2.1e8, e: "NASDAQ" },
+    { t: "AAPL", n: "Apple Inc", s: "Technology", i: "Consumer Electronics", mc: 4.58e12, p: 295, b: 1.2, d: 1.0, v: 5e7, e: "NASDAQ" },
+    { t: "MSFT", n: "Microsoft Corp", s: "Technology", i: "Software", mc: 3.34e12, p: 450, b: 0.9, d: 3.0, v: 2e7, e: "NASDAQ" },
+    { t: "KO", n: "Coca-Cola Co", s: "Consumer Defensive", i: "Beverages", mc: 2.6e11, p: 62, b: 0.6, d: 1.94, v: 1.2e7, e: "NYSE" },
+    { t: "PLTR", n: "Palantir Technologies", s: "Technology", i: "Software", mc: 3.59e11, p: 155, b: 2.6, d: 0, v: 6e7, e: "NASDAQ" },
+  ];
+}
+
+// ---------- letztes Screening (nur fuer Info-Zeile) ----------
+function latestScreenInfo() {
   const dir = join(ROOT, "screen_results");
-  if (!existsSync(dir)) return null;
+  if (!existsSync(dir)) return "";
   const files = readdirSync(dir).filter(f => f.endsWith(".md"));
-  if (!files.length) return null;
-  files.sort((a, b) => statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs);
-  const txt = read(join(dir, files[0]));
-  const title = (txt.match(/^#\s+(.+)/m) || [])[1] || files[0];
-  const rows = [];
-  for (const line of txt.split("\n")) {
-    if (!line.trim().startsWith("|")) continue;
-    const cells = line.split("|").slice(1, -1).map(c => c.trim());
-    if (cells.length < 2) continue;
-    if (/^#$/.test(cells[0]) || /^-+$/.test(cells[0])) continue;
-    rows.push(cells);
-  }
-  return { title, rows };
+  if (!files.length) return "";
+  files.sort();
+  return files[files.length - 1].replace(/\.md$/, "");
 }
 
-// ---------- Hilfen fuer faire Wertspanne ----------
-const firstNum = s => { const m = String(s).replace(/[.,](?=\d{3}\b)/g, "").match(/-?\d+(?:[.,]\d+)?/); return m ? parseFloat(m[0].replace(",", ".")) : NaN; };
-function rangePosition(price, fair) {
-  const p = firstNum(price);
-  const nums = String(fair).match(/-?\d+(?:[.,]\d+)?/g);
-  if (!Number.isFinite(p) || !nums || nums.length < 2) return null;
-  const lo = parseFloat(nums[0].replace(",", ".")), hi = parseFloat(nums[nums.length - 1].replace(",", "."));
-  if (!(hi > lo)) return null;
-  const pct = Math.max(0, Math.min(100, ((p - lo) / (hi - lo)) * 100));
-  const label = p < lo ? "unter der Spanne" : p > hi ? "über der Spanne" : "innerhalb der Spanne";
-  return { pct, label };
-}
+// ====================== Zusammenbau ======================
+const core = parseWatchlist().map(r => ({ ...r, rep: parseReport(r.ticker) }));
 
-// ---------- HTML bauen ----------
-const ampelClass = a => (a === "🟢" ? "g" : a === "🟡" ? "y" : a === "🔴" ? "r" : "n");
-const ampelText = a => (a === "🟢" ? "Günstig / interessant" : a === "🟡" ? "Neutral / beobachten" : a === "🔴" ? "Vorsicht / teuer" : "Noch nicht analysiert");
-
-function card(row) {
-  const rep = parseReport(row.ticker);
-  const ampel = (rep && rep.ampel) || (AMPELS.includes(row.wlAmpel) ? row.wlAmpel : "");
-  const cls = ampelClass(ampel);
-  const analyzed = !!rep;
-  const name = (rep && rep.company) || row.name || "";
-
-  let body = "";
-  if (analyzed) {
-    const pos = rangePosition(rep.price, rep.fairValue);
-    const bar = pos ? `<div class="bar"><span style="left:${pos.pct.toFixed(0)}%"></span></div>
-        <div class="muted small">Kurs ${pos.label}</div>` : "";
-    const fv = rep.fairValue ? `<div class="kv"><span>Faire Spanne</span><b>${esc(rep.fairValue)}</b></div>` : "";
-    const pr = rep.price ? `<div class="kv"><span>Kurs</span><b>${esc(rep.price)}</b></div>` : "";
-    const pros = rep.pros.length ? `<b>✅ Pro</b><ul>${rep.pros.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
-    const cons = rep.contras.length ? `<b>⛔ Contra</b><ul>${rep.contras.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
-    body = `
-      ${rep.begruendung ? `<p class="reason">${esc(rep.begruendung)}</p>` : ""}
-      ${pr}${fv}${bar}
-      ${rep.date ? `<div class="kv"><span>Analysiert</span><b>${esc(rep.date)}</b></div>` : ""}
-      ${(pros || cons) ? `<details><summary>Details</summary>${pros}${cons}</details>` : ""}`;
+let universe = [];
+let universeNote = "";
+if (MOCK) {
+  universe = mockUniverse();
+  universeNote = "Demo-Daten (--mock)";
+} else {
+  const key = apiKey();
+  if (!key) {
+    universeNote = "⚠️ Kein FMP_API_KEY gefunden – Markt-Liste leer. Lege .env an (siehe STRATEGIEN.md).";
   } else {
-    body = `<p class="muted">Noch nicht analysiert.${row.notiz ? " " + esc(row.notiz) : ""}</p>
-      <div class="muted small">Tipp: <code>/analyze ${esc(row.ticker)}</code></div>`;
+    try {
+      universe = await fetchUniverse(key);
+      universeNote = `${universe.length.toLocaleString("de-DE")} US-Aktien · Stand ${new Date().toISOString().slice(0, 10)}`;
+    } catch (e) {
+      universeNote = `⚠️ Markt-Liste konnte nicht geladen werden (${e.message}).`;
+    }
   }
-
-  return `<article class="card ${cls}">
-    <header><div><span class="ticker">${esc(row.ticker)}</span> <span class="muted">${esc(name)}</span></div>
-      <span class="dot ${cls}" title="${esc(ampelText(ampel))}"></span></header>
-    <div class="typ">${esc(row.typ || "")}</div>
-    ${body}
-  </article>`;
 }
 
-function buildScreenSection(scr) {
-  if (!scr) return `<p class="muted">Noch kein Screening durchgeführt. Tipp: <code>/screen quality-growth</code></p>`;
-  const head = scr.rows[0];
-  const data = scr.rows.slice(1);
-  return `<h3>${esc(scr.title)}</h3>
-    <div class="tablewrap"><table>
-      <thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead>
-      <tbody>${data.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody>
-    </table></div>`;
+// Analysen an Universums-Eintraege anheften (fuer Ampel/Detail in der grossen Liste)
+const repByTicker = {};
+for (const c of core) if (c.rep) repByTicker[c.ticker] = c.rep;
+for (const s of universe) {
+  const rep = repByTicker[s.t];
+  if (rep) s.r = { a: rep.ampel, g: rep.begruendung, fv: rep.fairValue, dt: rep.date, pr: rep.pros, co: rep.contras };
 }
 
-// ---------- Zusammenbau ----------
-const core = parseWatchlist();
-const reports = core.map(r => ({ r, rep: parseReport(r.ticker) }));
-const count = a => reports.filter(x => ((x.rep && x.rep.ampel) || x.r.wlAmpel) === a).length;
-const analyzedCount = reports.filter(x => x.rep).length;
-const screen = parseLatestScreen();
-const now = new Date();
-const stamp = now.toISOString().slice(0, 16).replace("T", " ");
+// Portfolio-Daten fuer die JS-Seite aufbereiten
+const portfolio = core.map(c => ({
+  t: c.ticker, n: (c.rep && c.rep.company) || c.name, ty: c.typ, no: c.notiz,
+  a: (c.rep && c.rep.ampel) || (AMPELS.includes(c.wlAmpel) ? c.wlAmpel : ""),
+  r: c.rep ? { a: c.rep.ampel, g: c.rep.begruendung, fv: c.rep.fairValue, dt: c.rep.date, pr: c.rep.pros, co: c.rep.contras, price: c.rep.price } : null,
+}));
+
+const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+const screenInfo = latestScreenInfo();
+
+const css = `
+:root{--g:#16a34a;--y:#d97706;--r:#dc2626;--n:#9ca3af;--bg:#f7f8fa;--card:#fff;--bd:#e5e7eb;--tx:#111827;--mut:#6b7280}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:env(safe-area-inset-top) 0 60px}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+header.top{padding:22px 0 6px}
+h1{font-size:24px;margin:0 0 2px}
+.sub{color:var(--mut);font-size:13px}
+.disclaimer{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:9px 13px;font-size:13px;margin:12px 0}
+h2{font-size:18px;margin:26px 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-left:5px solid var(--n);border-radius:14px;padding:13px 15px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.card.g{border-left-color:var(--g)}.card.y{border-left-color:var(--y)}.card.r{border-left-color:var(--r)}
+.card .hd{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ticker{font-weight:700;font-size:17px}
+.typ{font-size:12px;color:var(--mut);margin:2px 0 6px}
+.dot{width:13px;height:13px;border-radius:50%;background:var(--n);flex:0 0 auto}
+.dot.g{background:var(--g)}.dot.y{background:var(--y)}.dot.r{background:var(--r)}
+.reason{font-size:14px;margin:6px 0}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:3px 0;border-top:1px dashed var(--bd)}
+.kv span{color:var(--mut)}.kv b{text-align:right}
+.muted{color:var(--mut)}.small{font-size:12px}
+code{background:#eef2ff;color:#3730a3;padding:2px 7px;border-radius:6px;font-size:13px}
+details{margin-top:6px}summary{cursor:pointer;font-size:14px;color:var(--mut)}
+details ul{margin:4px 0 8px;padding-left:18px;font-size:14px}
+.tools{position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:5;display:flex;gap:8px;flex-wrap:wrap}
+.tools input,.tools select{font:15px inherit;padding:9px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff}
+.tools input{flex:1;min-width:140px}
+.count{color:var(--mut);font-size:13px;margin:4px 0 8px}
+.list{background:var(--card);border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+.row{display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--bd);cursor:pointer}
+.row:last-child{border-bottom:0}
+.row:hover{background:#f9fafb}
+.row .t{font-weight:700}
+.row .nm{color:var(--mut);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .rt{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut);justify-self:end}
+.detail{padding:12px 16px;background:#fafafa;border-bottom:1px solid var(--bd);font-size:14px}
+.detail .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:2px 18px}
+.analyze{background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:9px 12px;margin-top:10px;font-size:14px}
+.more{display:block;width:100%;padding:12px;border:0;background:#fff;border-top:1px solid var(--bd);font:600 15px inherit;color:#3730a3;cursor:pointer}
+footer{margin-top:30px;color:var(--mut);font-size:12px;text-align:center}
+`;
+
+// Browser-JS bewusst OHNE Template-Strings / ${...}, damit es nicht mit Node kollidiert.
+const js = `
+var STOCKS = __STOCKS__;
+var PORTFOLIO = __PORTFOLIO__;
+var shown = 300, q = "", sortKey = "mc";
+
+function cls(a){return a==="🟢"?"g":a==="🟡"?"y":a==="🔴"?"r":"n";}
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function cap(n){if(!n)return "–";if(n>=1e12)return "$"+(n/1e12).toFixed(2)+" Bio.";if(n>=1e9)return "$"+(n/1e9).toFixed(1)+" Mrd.";if(n>=1e6)return "$"+(n/1e6).toFixed(0)+" Mio.";return "$"+n;}
+function px(n){return n?("$"+n.toFixed(2)):"–";}
+function yld(s){return (s.d&&s.p)?((s.d/s.p*100).toFixed(1)+" %"):"–";}
+function vol(n){return n?n.toLocaleString("de-DE"):"–";}
+
+function kv(label,val){return '<div class="kv"><span>'+esc(label)+'</span><b>'+esc(val)+'</b></div>';}
+
+function analysisBlock(r){
+  if(!r) return "";
+  var h='<div class="reason"><b>'+(r.a||"")+'</b> '+esc(r.g||"")+'</div>';
+  if(r.fv) h+=kv("Faire Spanne",r.fv);
+  if(r.dt) h+=kv("Analysiert",r.dt);
+  if(r.pr&&r.pr.length){h+='<b>✅ Pro</b><ul>';r.pr.forEach(function(x){h+='<li>'+esc(x)+'</li>';});h+='</ul>';}
+  if(r.co&&r.co.length){h+='<b>⛔ Contra</b><ul>';r.co.forEach(function(x){h+='<li>'+esc(x)+'</li>';});h+='</ul>';}
+  return h;
+}
+
+function detail(s){
+  var g='<div class="grid2">'+
+    kv("Sektor",s.s||"–")+kv("Branche",s.i||"–")+
+    kv("Marktkap.",cap(s.mc))+kv("Kurs",px(s.p))+
+    kv("Div.-Rendite",yld(s))+kv("Beta",s.b?s.b.toFixed(2):"–")+
+    kv("Volumen",vol(s.v))+kv("Börse",s.e||"–")+'</div>';
+  var a = s.r ? ('<div style="margin-top:10px">'+analysisBlock(s.r)+'</div>')
+             : '<div class="muted small" style="margin-top:8px">Tiefe Kennzahlen (KGV, ROE, Wachstum…) erscheinen nach der Tiefenanalyse.</div>';
+  var cmd='<div class="analyze">🔍 <b>Tiefenanalyse starten</b> – in Claude Code eingeben:<br><code>/analyze '+esc(s.t)+'</code></div>';
+  return '<div class="detail">'+g+a+cmd+'</div>';
+}
+
+function filtered(){
+  var t=q.trim().toLowerCase();
+  var arr=STOCKS.filter(function(s){return !t || s.t.toLowerCase().indexOf(t)>=0 || (s.n&&s.n.toLowerCase().indexOf(t)>=0);});
+  arr.sort(function(a,b){
+    if(sortKey==="name")return (a.n||"").localeCompare(b.n||"");
+    if(sortKey==="p")return b.p-a.p;
+    if(sortKey==="yld")return (b.d/b.p||0)-(a.d/a.p||0);
+    return b.mc-a.mc;
+  });
+  return arr;
+}
+
+function renderList(){
+  var arr=filtered();
+  var slice=arr.slice(0,shown);
+  var html="";
+  slice.forEach(function(s){
+    var dot=s.r?('<span class="dot '+cls(s.r.a)+'"></span>'):"";
+    html+='<div class="row" onclick="toggle(this,\\''+s.t+'\\')">'+
+      '<span class="t">'+esc(s.t)+'</span>'+
+      '<span class="nm">'+esc(s.n)+'</span>'+
+      '<span class="rt">'+cap(s.mc)+dot+'</span></div>';
+  });
+  if(arr.length>shown) html+='<button class="more" onclick="shown+=300;renderList()">Mehr anzeigen ('+(arr.length-shown)+' weitere)</button>';
+  document.getElementById("list").innerHTML=html || '<div class="row"><span class="muted">Keine Treffer.</span></div>';
+  document.getElementById("count").textContent=arr.length.toLocaleString("de-DE")+" Aktien"+(q?" gefunden":"")+" · "+Math.min(shown,arr.length)+" angezeigt";
+}
+
+var openTicker=null;
+function toggle(rowEl,t){
+  var ex=rowEl.nextSibling;
+  if(ex&&ex.className==="detail"){ex.parentNode.removeChild(ex);openTicker=null;return;}
+  var old=document.querySelector(".detail");if(old)old.parentNode.removeChild(old);
+  var s=STOCKS.filter(function(x){return x.t===t;})[0];if(!s)return;
+  var div=document.createElement("div");div.innerHTML=detail(s);
+  rowEl.parentNode.insertBefore(div.firstChild,rowEl.nextSibling);openTicker=t;
+}
+
+function renderPortfolio(){
+  var h="";
+  PORTFOLIO.forEach(function(p){
+    var c=cls(p.a);
+    var body = p.r ? analysisBlock(p.r) : '<p class="muted">Noch nicht analysiert.'+(p.no?" "+esc(p.no):"")+'</p><div class="muted small">Tipp: <code>/analyze '+esc(p.t)+'</code></div>';
+    h+='<article class="card '+c+'"><div class="hd"><div><span class="ticker">'+esc(p.t)+'</span> <span class="muted">'+esc(p.n)+'</span></div><span class="dot '+c+'"></span></div>'+
+       '<div class="typ">'+esc(p.ty||"")+'</div>'+body+'</article>';
+  });
+  document.getElementById("portfolio").innerHTML=h;
+}
+
+document.getElementById("q").addEventListener("input",function(e){q=e.target.value;shown=300;renderList();});
+document.getElementById("sort").addEventListener("change",function(e){sortKey=e.target.value;renderList();});
+renderPortfolio();renderList();
+`;
 
 const html = `<!DOCTYPE html>
 <html lang="de">
@@ -182,78 +313,45 @@ const html = `<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Finanzen">
 <meta name="theme-color" content="#ffffff">
 <title>Mein Finanz-Dashboard</title>
-<style>
-  :root{--g:#16a34a;--y:#d97706;--r:#dc2626;--n:#9ca3af;--bg:#f7f8fa;--card:#fff;--bd:#e5e7eb;--tx:#111827;--mut:#6b7280}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:env(safe-area-inset-top) 0 40px}
-  .wrap{max-width:1100px;margin:0 auto;padding:0 16px}
-  header.top{padding:24px 0 8px}
-  h1{font-size:24px;margin:0 0 2px}
-  .sub{color:var(--mut);font-size:14px}
-  .disclaimer{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:10px 14px;font-size:13px;margin:14px 0}
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:16px 0 8px}
-  .stat{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;text-align:center}
-  .stat .num{font-size:24px;font-weight:700}
-  .stat.g .num{color:var(--g)}.stat.y .num{color:var(--y)}.stat.r .num{color:var(--r)}
-  .stat .lbl{font-size:12px;color:var(--mut)}
-  h2{font-size:18px;margin:28px 0 12px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
-  .card{background:var(--card);border:1px solid var(--bd);border-left:5px solid var(--n);border-radius:14px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-  .card.g{border-left-color:var(--g)}.card.y{border-left-color:var(--y)}.card.r{border-left-color:var(--r)}
-  .card header{display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;padding:0}
-  .ticker{font-weight:700;font-size:18px}
-  .typ{font-size:12px;color:var(--mut);margin:2px 0 8px}
-  .dot{width:14px;height:14px;border-radius:50%;background:var(--n);flex:0 0 auto}
-  .dot.g{background:var(--g)}.dot.y{background:var(--y)}.dot.r{background:var(--r)}
-  .reason{font-size:14px;margin:6px 0 10px}
-  .kv{display:flex;justify-content:space-between;font-size:14px;padding:3px 0;border-top:1px dashed var(--bd)}
-  .kv span{color:var(--mut)}
-  .bar{position:relative;height:6px;background:linear-gradient(90deg,#bbf7d0,#fde68a,#fecaca);border-radius:4px;margin:10px 0 4px}
-  .bar span{position:absolute;top:-3px;width:3px;height:12px;background:#111827;transform:translateX(-50%);border-radius:2px}
-  .muted{color:var(--mut)}.small{font-size:12px}
-  code{background:#eef2ff;color:#3730a3;padding:1px 6px;border-radius:6px;font-size:13px}
-  details{margin-top:8px}summary{cursor:pointer;font-size:14px;color:var(--mut)}
-  details ul{margin:4px 0 10px;padding-left:18px;font-size:14px}
-  .tablewrap{overflow-x:auto;background:var(--card);border:1px solid var(--bd);border-radius:14px}
-  table{border-collapse:collapse;width:100%;font-size:14px}
-  th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap}
-  th{background:#f3f4f6;color:var(--mut);font-weight:600}
-  tr:last-child td{border-bottom:0}
-  footer{margin-top:32px;color:var(--mut);font-size:12px;text-align:center}
-</style>
+<style>${css}</style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <h1>📊 Mein Finanz-Dashboard</h1>
-    <div class="sub">Stand: ${stamp} · Quelle: eigene Analysen (Claude Code) + Financial Modeling Prep</div>
-    <div class="disclaimer">⚠️ Nur zur Information – <b>keine Anlageberatung</b>. Die Ampel ist eine Orientierung, keine Empfehlung. Zahlen an der Primärquelle prüfen.</div>
+    <div class="sub">Stand: ${stamp} · Quelle: Financial Modeling Prep + eigene Analysen (Claude Code)${screenInfo ? " · Letztes Screening: " + screenInfo : ""}</div>
+    <div class="disclaimer">⚠️ Nur zur Information – <b>keine Anlageberatung</b>. Ampeln sind Orientierung, keine Empfehlung. Zahlen an der Primärquelle prüfen.</div>
   </header>
 
-  <div class="stats">
-    <div class="stat"><div class="num">${core.length}</div><div class="lbl">Kern-Werte</div></div>
-    <div class="stat g"><div class="num">${count("🟢")}</div><div class="lbl">🟢 Günstig</div></div>
-    <div class="stat y"><div class="num">${count("🟡")}</div><div class="lbl">🟡 Neutral</div></div>
-    <div class="stat r"><div class="num">${count("🔴")}</div><div class="lbl">🔴 Vorsicht</div></div>
-    <div class="stat"><div class="num">${analyzedCount}/${core.length}</div><div class="lbl">analysiert</div></div>
+  <h2>⭐ Mein Kern-Portfolio</h2>
+  <div id="portfolio" class="grid"></div>
+
+  <h2>🇺🇸 Alle US-Aktien</h2>
+  <div class="sub" style="margin-bottom:8px">${universeNote}</div>
+  <div class="tools">
+    <input id="q" type="search" placeholder="🔎 Ticker oder Name suchen …" autocomplete="off">
+    <select id="sort">
+      <option value="mc">Größte zuerst</option>
+      <option value="name">Name A–Z</option>
+      <option value="p">Höchster Kurs</option>
+      <option value="yld">Höchste Dividende</option>
+    </select>
   </div>
+  <div id="count" class="count"></div>
+  <div id="list" class="list"></div>
 
-  <h2>⭐ Kern-Portfolio</h2>
-  <div class="grid">${core.map(card).join("")}</div>
-
-  <h2>🔎 Letztes Screening</h2>
-  ${buildScreenSection(screen)}
-
-  <footer>Automatisch erstellt mit <code>scripts/build_dashboard.mjs</code> · Keine Anlageberatung.</footer>
+  <footer>Erstellt mit <code>scripts/build_dashboard.mjs</code> · Tippe eine Aktie an für Details · Keine Anlageberatung.</footer>
 </div>
+<script>
+${js.replace("__STOCKS__", JSON.stringify(universe)).replace("__PORTFOLIO__", JSON.stringify(portfolio))}
+</script>
 </body>
 </html>`;
 
 writeFileSync(OUT, html);
 console.log(`✓ Dashboard erstellt: ${OUT}`);
-console.log(`  ${core.length} Kern-Werte, davon ${analyzedCount} analysiert (🟢${count("🟢")} 🟡${count("🟡")} 🔴${count("🔴")})`);
-console.log(`  Auf dem PC: Datei doppelklicken. Fürs iPhone: in deinen OneDrive-Ordner kopieren.`);
+console.log(`  Portfolio: ${core.length} Werte · Markt-Liste: ${universe.length} US-Aktien`);
+if (!MOCK && !universe.length) console.log("  Hinweis: Markt-Liste leer – FMP_API_KEY prüfen (oder --mock zum Anschauen).");
