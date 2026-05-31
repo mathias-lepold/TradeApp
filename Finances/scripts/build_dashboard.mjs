@@ -223,6 +223,7 @@ details.sector .row{align-items:start}
 details.sector .nm{white-space:normal;color:var(--tx)}
 details.sector .nm b{font-weight:600}
 .biz{display:block;color:var(--mut);font-size:12px;line-height:1.35;margin-top:2px}
+.hint{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:10px;padding:10px 13px;font-size:13px;line-height:1.45;margin-bottom:10px}
 footer{margin-top:30px;color:var(--mut);font-size:12px;text-align:center}
 `;
 
@@ -379,7 +380,17 @@ function renderSectors(){
   var by={};
   STOCKS.forEach(function(s){var k=s.s||"Ohne Sektor";(by[k]=by[k]||[]).push(s);});
   var names=Object.keys(by).sort(function(a,b){return a.localeCompare(b,"de");});
+  // "Ohne Sektor" immer ans Ende, nicht zwischen die echten Branchen
+  names=names.filter(function(n){return n!=="Ohne Sektor";});
+  if(by["Ohne Sektor"]) names.push("Ohne Sektor");
   var h="";
+  // Selbsterklärender Hinweis, wenn die Datenquelle nur wenig liefert
+  var total=STOCKS.length;
+  var noSec=(by["Ohne Sektor"]||[]).length;
+  var realSectors=names.filter(function(n){return n!=="Ohne Sektor";}).length;
+  if(total && (total<1000 || realSectors<8)){
+    h+='<div class="hint">ℹ️ Der Datenanbieter hat nur <b>'+total.toLocaleString("de-DE")+' Aktien</b> geliefert ('+realSectors+' Branchen'+(noSec?', '+noSec+' ohne Sektor':'')+'). Das deutet auf einen <b>begrenzten (kostenlosen) FMP-Plan</b> hin – mit vollem Plan erscheinen alle 11 Branchen mit echten Top 10. (Kein Dashboard-Fehler.)</div>';
+  }
   names.forEach(function(name){
     var arr=by[name].slice().sort(function(a,b){return b.mc-a.mc;}).slice(0,SECTOR_TOP);
     var rows="";
@@ -453,4 +464,12 @@ ${js.replace("__STOCKS__", JSON.stringify(universe)).replace("__PORTFOLIO__", JS
 writeFileSync(OUT, html);
 console.log(`✓ Dashboard erstellt: ${OUT}`);
 console.log(`  Portfolio: ${core.length} Werte · Markt-Liste: ${universe.length} US-Aktien`);
+if (universe.length) {
+  const bySec = {};
+  for (const s of universe) bySec[s.s || "Ohne Sektor"] = (bySec[s.s || "Ohne Sektor"] || 0) + 1;
+  const sorted = Object.entries(bySec).sort((a, b) => b[1] - a[1]);
+  console.log(`  Sektoren (${sorted.filter(([n]) => n !== "Ohne Sektor").length} mit Branche):`);
+  for (const [name, n] of sorted) console.log(`    ${String(n).padStart(5)}  ${name}`);
+  if (universe.length < 1000) console.log("  ⚠️ Sehr wenige Aktien – deutet auf einen begrenzten (kostenlosen) FMP-Plan hin. Volle Marktdaten brauchen einen bezahlten Plan.");
+}
 if (!MOCK && !universe.length) console.log("  Hinweis: Markt-Liste leer – FMP_API_KEY prüfen (oder --mock zum Anschauen).");
